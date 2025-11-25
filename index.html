@@ -7,8 +7,8 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no"
     />
     <title>幸运硬币</title>
-    <link rel="icon" href="/favicon.ico" />
-    <script src="/public/phaser.min.js"></script>
+    <link rel="icon" href="./favicon.ico" />
+    <script src="./public/phaser.min.js"></script>
     <style>
       body {
         margin: 0;
@@ -17,9 +17,6 @@
         font-family: Arial, sans-serif;
       }
       #game-container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
         height: 100vh;
         background: #f0f0f0;
       }
@@ -123,6 +120,13 @@
             },
             audio: {
               disableWebAudio: false,
+            },
+            scale: {
+              mode: Phaser.Scale.FIT,
+              autoCenter: Phaser.Scale.CENTER_BOTH,
+              parent: "game-container",
+              width: totalWidth,
+              height: GAME_CONFIG.HEIGHT,
             },
           };
 
@@ -284,7 +288,7 @@
             `${coinData.type}Coin`
           );
           coin.setInteractive({ useHandCursor: true });
-          coin.setScale(1.5); // 稍微放大硬币使其更易点击
+          coin.setScale(2); // 稍微放大硬币使其更易点击
 
           // 存储硬币数据
           coin.coinData = coinData;
@@ -328,8 +332,8 @@
           // 移动动画
           scene.tweens.add({
             targets: coin,
-            scaleX: 3,
-            scaleY: 3,
+            scaleX: 4,
+            scaleY: 4,
             x: targetX,
             y: targetY,
             duration: GAME_CONFIG.ANIMATION.SPIN_DURATION,
@@ -338,14 +342,15 @@
               // 缩放回原始大小
               scene.tweens.add({
                 targets: coin,
-                scaleX: 1.5,
-                scaleY: 1.5,
+                scaleX: 2,
+                scaleY: 2,
                 duration: GAME_CONFIG.ANIMATION.SPIN_DURATION,
                 ease: "Quad.easeIn",
                 onComplete: () => {
                   // 停止旋转，播放闪光
                   coin.stop();
-                  if (Math.random() < 0.5) {
+                  // 提高一些概率 防止玩家烦躁
+                  if (Math.random() < 0.7) {
                     coin.play(`${coin.coinData.type}Flash`);
 
                     // 显示加分文本
