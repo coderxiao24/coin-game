@@ -15,5 +15,10 @@
   "bugs": {
     "url": "https://github.com/coderxiao24/coin-game/issues"
   },
-  "homepage": "https://github.com/coderxiao24/coin-game#readme"
+  "homepage": "https://github.com/coderxiao24/coin-game#readme",
+  "keywords": [
+    "game",
+    "h5",
+    "coin"
+  ]
 }
