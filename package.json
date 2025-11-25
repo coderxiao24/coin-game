@@ -1,0 +1,19 @@
+{
+  "name": "coin-game",
+  "version": "1.0.0",
+  "description": "幸运硬币h5版",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/coderxiao24/coin-game.git"
+  },
+  "author": "xiaokaixuan",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/coderxiao24/coin-game/issues"
+  },
+  "homepage": "https://github.com/coderxiao24/coin-game#readme"
+}
