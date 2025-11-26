@@ -36,19 +36,22 @@
         COIN_TYPES: {
           COPPER: {
             name: "copper",
-            basePrice: 10,
+            basePrice: 5,
             value: 1,
           },
           SILVER: {
             name: "silver",
-            basePrice: 100,
+            basePrice: 50,
             value: 10,
           },
           GOLD: {
             name: "gold",
-            basePrice: 1000,
+            basePrice: 500,
             value: 100,
           },
+        },
+        HELPER: {
+          basePrice: 50,
         },
         ANIMATION: {
           HELPER_FRAME_RATE: 12,
@@ -211,6 +214,7 @@
             frameHeight: 48,
           });
           scene.load.audio("spinSound", "public/coin_spin.mp3");
+          scene.load.audio("attackSound", "public/helper_attack.mp3");
           scene.load.image("woodenFloor", "public/floors/wooden.png");
           scene.load.image("shopWoodenFloor", "public/floors/shopWooden.png");
         }
@@ -238,7 +242,8 @@
           this.createHelpers(scene);
 
           // 加载音效
-          this.spinSound = scene.sound.add("spinSound", { volume: 0.7 });
+          this.spinSound = scene.sound.add("spinSound");
+          this.attackSound = scene.sound.add("attackSound");
 
           // 更新按钮状态
           this.updateButtons();
@@ -283,9 +288,10 @@
 
         createShopButtons(scene) {
           const buttonYPositions = [
+            GAME_CONFIG.HEIGHT - 210,
             GAME_CONFIG.HEIGHT - 160,
             GAME_CONFIG.HEIGHT - 110,
-            GAME_CONFIG.HEIGHT - 60,
+            GAME_CONFIG.HEIGHT - 60, // 助手按钮位置
           ];
 
           this.shopButtons = {};
@@ -305,6 +311,19 @@
 
             this.shopButtons[coinType.name] = button;
           });
+
+          // 添加助手购买按钮
+          this.helperButton = scene.add
+            .text(GAME_CONFIG.WIDTH + 10, buttonYPositions[3], "", {
+              fontSize: "16px",
+              color: "#fff",
+              padding: { x: 10, y: 8 },
+              fixedWidth: GAME_CONFIG.SHOP_WIDTH - 20,
+              align: "center",
+            })
+            .setOrigin(0)
+            .setInteractive({ useHandCursor: true })
+            .on("pointerdown", () => this.buyHelper());
         }
 
         createAnimations(scene) {
@@ -653,12 +672,54 @@
           }
         }
 
+        buyHelper() {
+          const price = this.calculateHelperPrice();
+
+          if (this.gameState.score >= price) {
+            // 扣除分数
+            this.gameState.setScore(this.gameState.score - price);
+            this.scoreText.setText(`${this.gameState.score}$`);
+
+            // 创建新助手
+            const x = Phaser.Math.Between(50, GAME_CONFIG.WIDTH - 50);
+            const y = Phaser.Math.Between(50, GAME_CONFIG.HEIGHT - 50);
+
+            const newHelper = {
+              x,
+              y,
+              direction: "down", // 默认方向
+            };
+
+            this.gameState.addHelper(newHelper);
+
+            // 创建助手精灵
+            const scene = this.game.scene.scenes[0];
+            const helper = scene.physics.add.sprite(x, y, "helper");
+            helper.setScale(2);
+            helper.helperData = newHelper;
+
+            const animKey = `helper-idle-down`;
+            helper.play(animKey);
+            helper.flipX = false;
+
+            this.helperSprites.push(helper);
+
+            // 更新按钮状态
+            this.updateButtons();
+          }
+        }
+
         calculatePrice(coinType) {
           const count = this.gameState.coins.filter(
             (coin) => coin.type === coinType.name
           ).length;
 
           return coinType.basePrice * (count || 0.5);
+        }
+
+        calculateHelperPrice() {
+          const count = this.gameState.helpers.length;
+          return GAME_CONFIG.HELPER.basePrice * (count || 0.5);
         }
 
         updateButtons() {
@@ -673,13 +734,27 @@
             if (this.gameState.score >= price) {
               button.setInteractive({ useHandCursor: true });
               button.setColor("#fff");
-              button.setBackgroundColor("#1890ff");
+              button.setBackgroundColor("#52c41a");
             } else {
               button.disableInteractive();
               button.setColor("#888");
               button.setBackgroundColor("#bfbfbf");
             }
           });
+
+          // 更新助手按钮
+          const helperPrice = this.calculateHelperPrice();
+          this.helperButton.setText(`购买助手\n${helperPrice}$`);
+
+          if (this.gameState.score >= helperPrice) {
+            this.helperButton.setInteractive({ useHandCursor: true });
+            this.helperButton.setColor("#fff");
+            this.helperButton.setBackgroundColor("#52c41a");
+          } else {
+            this.helperButton.disableInteractive();
+            this.helperButton.setColor("#888");
+            this.helperButton.setBackgroundColor("#bfbfbf");
+          }
         }
 
         getCoinTypeName(type) {
@@ -781,7 +856,13 @@
                   } else {
                     helper.flipX = false;
                   }
-                  this.spinCoin(target);
+                  this.attackSound.play();
+
+                  // 先100ms挥剑再命中硬币
+                  setTimeout(() => {
+                    this.spinCoin(target);
+                  }, 100);
+
                   helper.helperData.isTired = Date.now();
                 }
               }
