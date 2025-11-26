@@ -135,9 +135,9 @@
     <script>
       // 游戏配置常量
       const GAME_CONFIG = {
-        WIDTH: 600,
-        SHOP_WIDTH: 200,
-        HEIGHT: 600,
+        WIDTH: 300,
+        SHOP_WIDTH: 75,
+        HEIGHT: 667,
 
         SHOP_COLOR: 0xfa8c16,
         DOLLAR_COLOR: "#E39500",
@@ -271,7 +271,7 @@
           this.gameState = new GameState();
           this.coinSprites = [];
           this.helperSprites = [];
-          this.audioLoaded = false;
+
           this.showStartMenu();
         }
 
@@ -340,6 +340,7 @@
         }
 
         updateLoadingProgress(progress, text) {
+          console.log(666, Date.now());
           const loadingBar = document.getElementById("loading-bar");
           const loadingText = document.getElementById("loading-text");
 
@@ -423,56 +424,12 @@
           scene.load.image("woodenFloor", "public/floors/wooden.png");
           scene.load.image("shopWoodenFloor", "public/floors/shopWooden.png");
 
-          // 音频延迟加载，先加载游戏核心资源
-          this.updateLoadingProgress(80, "加载核心资源...");
-
-          // 设置加载完成回调
-          scene.load.on("complete", () => {
-            this.updateLoadingProgress(100, "游戏准备就绪!");
-            setTimeout(() => {
-              this.hideLoadingScreen();
-              // 延迟加载音频，避免阻塞游戏初始化
-              this.loadAudioAsync(scene);
-            }, 500);
-          });
-        }
-
-        // 异步加载音频
-        loadAudioAsync(scene) {
-          // 创建音频加载进度跟踪
-          let audioLoadProgress = 0;
-          const totalAudioFiles = 3; // spinSound, attackSound, bgm
-
-          const updateAudioProgress = () => {
-            audioLoadProgress += 1;
-            const progress = Math.floor(
-              (audioLoadProgress / totalAudioFiles) * 100
-            );
-            console.log(`音频加载进度: ${progress}%`);
-          };
-
-          // 加载音频文件
+          this.updateLoadingProgress(80, "加载音频...");
           scene.load.audio("spinSound", "public/coin_spin.mp3");
           scene.load.audio("attackSound", "public/helper_attack.mp3");
           scene.load.audio("bgm", "public/bgm.mp3");
-
-          // 监听音频加载完成
-          scene.load.on("filecomplete-audio-spinSound", () => {
-            updateAudioProgress();
-          });
-
-          scene.load.on("filecomplete-audio-attackSound", () => {
-            updateAudioProgress();
-          });
-
-          scene.load.on("filecomplete-audio-bgm", () => {
-            updateAudioProgress();
-            this.audioLoaded = true;
-            this.initAudio(scene);
-          });
-
-          // 开始加载音频
-          scene.load.start();
+          this.updateLoadingProgress(100, "游戏准备就绪!");
+          this.hideLoadingScreen();
         }
 
         initAudio(scene) {
@@ -483,14 +440,13 @@
             loop: true,
             volume: 0.5, // 降低音量避免干扰
           });
-
           // 播放背景音乐
           this.bgm.play();
         }
 
         create() {
           const scene = this.game.scene.scenes[0];
-
+          this.initAudio(scene);
           // 创建游戏背景
           this.createGameBackground(scene);
 
@@ -534,39 +490,46 @@
             "shopWoodenFloor"
           );
           shopFloor.setOrigin(0.5);
+
+          scene.add
+            .text(GAME_CONFIG.WIDTH + GAME_CONFIG.SHOP_WIDTH / 2, 24, `商店`, {
+              fontSize: "24px",
+              fontWeight: "bold",
+              color: GAME_CONFIG.DOLLAR_COLOR,
+              stroke: "#000000",
+              strokeThickness: 4,
+            })
+            .setOrigin(0.5);
         }
 
         createScoreText(scene) {
           return scene.add
             .text(
-              GAME_CONFIG.WIDTH + GAME_CONFIG.SHOP_WIDTH - 20,
-              20,
+              (GAME_CONFIG.WIDTH + GAME_CONFIG.SHOP_WIDTH) / 2,
+              24,
               `${this.gameState.score}$`,
               {
                 fontSize: "24px",
                 color: "#fff",
+                stroke: "#000",
+                strokeThickness: 4,
                 fontWeight: "bold",
               }
             )
-            .setOrigin(1, 0);
+            .setOrigin(0.5);
         }
 
         createShopButtons(scene) {
-          const buttonYPositions = [
-            GAME_CONFIG.HEIGHT - 210,
-            GAME_CONFIG.HEIGHT - 160,
-            GAME_CONFIG.HEIGHT - 110,
-            GAME_CONFIG.HEIGHT - 60, // 助手按钮位置
-          ];
-
           this.shopButtons = {};
 
           Object.values(GAME_CONFIG.COIN_TYPES).forEach((coinType, index) => {
             const button = scene.add
-              .text(GAME_CONFIG.WIDTH + 10, buttonYPositions[index], "", {
-                fontSize: "16px",
+              .text(GAME_CONFIG.WIDTH + 10, 70 + 70 * index, "", {
+                fontSize: "20px",
                 color: "#fff",
-                padding: { x: 10, y: 8 },
+                stroke: "#000",
+                strokeThickness: 3,
+                padding: { x: 4, y: 8 },
                 fixedWidth: GAME_CONFIG.SHOP_WIDTH - 20,
                 align: "center",
               })
@@ -579,10 +542,12 @@
 
           // 添加助手购买按钮
           this.helperButton = scene.add
-            .text(GAME_CONFIG.WIDTH + 10, buttonYPositions[3], "", {
-              fontSize: "16px",
+            .text(GAME_CONFIG.WIDTH + 10, 280, "", {
+              fontSize: "20px",
               color: "#fff",
-              padding: { x: 10, y: 8 },
+              stroke: "#000",
+              strokeThickness: 3,
+              padding: { x: 4, y: 4 },
               fixedWidth: GAME_CONFIG.SHOP_WIDTH - 20,
               align: "center",
             })
@@ -779,10 +744,7 @@
           const scene = this.game.scene.scenes[0];
           coin.isSpinning = true;
 
-          // 播放音效（如果已加载）
-          if (this.audioLoaded) {
-            this.spinSound.play();
-          }
+          this.spinSound.play();
 
           // 播放旋转动画
           coin.play(`${coin.coinData.type}Spin`);
@@ -994,9 +956,7 @@
             const button = this.shopButtons[coinType.name];
             const price = this.calculatePrice(coinType);
 
-            button.setText(
-              `购买${this.getCoinTypeName(coinType.name)}\n${price}$`
-            );
+            button.setText(`${this.getCoinTypeName(coinType.name)}\n${price}$`);
 
             if (this.gameState.score >= price) {
               button.setInteractive({ useHandCursor: true });
@@ -1011,7 +971,7 @@
 
           // 更新助手按钮
           const helperPrice = this.calculateHelperPrice();
-          this.helperButton.setText(`购买助手\n${helperPrice}$`);
+          this.helperButton.setText(`助手\n${helperPrice}$`);
 
           if (this.gameState.score >= helperPrice) {
             this.helperButton.setInteractive({ useHandCursor: true });
@@ -1124,10 +1084,7 @@
                     helper.flipX = false;
                   }
 
-                  // 播放攻击音效（如果已加载）
-                  if (this.audioLoaded) {
-                    this.attackSound.play();
-                  }
+                  this.attackSound.play();
 
                   // 先100ms挥剑再命中硬币
                   setTimeout(() => {
