@@ -9,115 +9,7 @@
     <title>幸运硬币</title>
     <link rel="icon" href="./favicon.ico" />
     <script src="./public/phaser.min.js"></script>
-    <style>
-      body {
-        margin: 0;
-        padding: 0;
-        overflow: hidden;
-        font-family: Arial, sans-serif;
-      }
-      #game-container {
-        height: 100vh;
-        background: #f0f0f0;
-      }
-      #start-menu {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.8);
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-        color: white;
-      }
-      .menu-title {
-        font-size: 36px;
-        margin-bottom: 40px;
-        color: #ffd700;
-        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-      }
-      .menu-button {
-        background: #4a90e2;
-        color: white;
-        border: none;
-        padding: 12px;
-        border-radius: 8px;
-        cursor: pointer;
-        width: 30%;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-      }
-      #menu-buttons {
-        width: 100%;
-        display: flex;
-        justify-content: space-evenly;
-        align-items: center;
-      }
-      .menu-button:hover {
-        background: #357abd;
-        transform: translateY(-2px);
-        box-shadow: 0 6px 8px rgba(0, 0, 0, 0.4);
-      }
-      .menu-button:active {
-        transform: translateY(0);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-      }
-      .menu-button.warning {
-        background: #e74c3c;
-      }
-      .menu-button.warning:hover {
-        background: #c0392b;
-      }
-      .menu-button.success {
-        background: #2ecc71;
-      }
-      .menu-button.success:hover {
-        background: #27ae60;
-      }
-
-      /* 新增加载进度样式 */
-      #loading-container {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.8);
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        z-index: 1001;
-        color: white;
-      }
-      .loading-title {
-        font-size: 28px;
-        margin-bottom: 20px;
-        color: #ffd700;
-      }
-      .loading-bar-container {
-        width: 80%;
-        max-width: 400px;
-        height: 20px;
-        background: #333;
-        border-radius: 10px;
-        overflow: hidden;
-        margin-bottom: 10px;
-      }
-      .loading-bar {
-        height: 100%;
-        background: #4a90e2;
-        width: 0%;
-        transition: width 0.3s ease;
-      }
-      .loading-text {
-        font-size: 16px;
-      }
-    </style>
+    <link rel="stylesheet" href="./index.css" />
   </head>
   <body>
     <div id="game-container"></div>
@@ -138,8 +30,6 @@
         WIDTH: 300,
         SHOP_WIDTH: 75,
         HEIGHT: 667,
-
-        SHOP_COLOR: 0xfa8c16,
         DOLLAR_COLOR: "#E39500",
         COIN_TYPES: {
           COPPER: {
@@ -271,7 +161,6 @@
           this.gameState = new GameState();
           this.coinSprites = [];
           this.helperSprites = [];
-
           this.showStartMenu();
         }
 
@@ -340,7 +229,6 @@
         }
 
         updateLoadingProgress(progress, text) {
-          console.log(666, Date.now());
           const loadingBar = document.getElementById("loading-bar");
           const loadingText = document.getElementById("loading-text");
 
@@ -394,7 +282,15 @@
         preload() {
           const scene = this.game.scene.scenes[0];
 
-          this.updateLoadingProgress(30, "加载图像资源...");
+          this.updateLoadingProgress(33, "加载图像资源...");
+
+          scene.load.image("woodenFloor", "public/floors/wooden.png");
+          scene.load.image("shopWoodenFloor", "public/floors/shopWooden.png");
+
+          scene.load.spritesheet(`helper`, `public/helper.png`, {
+            frameWidth: 48,
+            frameHeight: 48,
+          });
 
           // 加载硬币精灵图
           Object.values(GAME_CONFIG.COIN_TYPES).forEach((coinType) => {
@@ -414,31 +310,38 @@
             );
           });
 
-          scene.load.spritesheet(`helper`, `public/helper.png`, {
-            frameWidth: 48,
-            frameHeight: 48,
+          scene.load.once("complete", () => {
+            this.updateLoadingProgress(66, "加载音频...");
+            scene.load.audio("spinSound", "public/coin_spin.mp3");
+            scene.load.audio("attackSound", "public/helper_attack.mp3");
+
+            scene.load.once("complete", () => {
+              this.spinSound = scene.sound.add("spinSound");
+              this.attackSound = scene.sound.add("attackSound");
+
+              this.updateLoadingProgress(100, "游戏准备就绪!");
+              setTimeout(() => {
+                this.hideLoadingScreen();
+              }, 200);
+
+              scene.load.audio("bgm", "public/bgm.mp3");
+
+              scene.load.once("complete", () => {
+                this.initBgm(scene);
+              });
+              // 重启加载器
+              scene.load.start();
+            });
+
+            scene.load.start();
           });
-
-          this.updateLoadingProgress(60, "加载背景...");
-
-          scene.load.image("woodenFloor", "public/floors/wooden.png");
-          scene.load.image("shopWoodenFloor", "public/floors/shopWooden.png");
-
-          this.updateLoadingProgress(80, "加载音频...");
-          scene.load.audio("spinSound", "public/coin_spin.mp3");
-          scene.load.audio("attackSound", "public/helper_attack.mp3");
-          scene.load.audio("bgm", "public/bgm.mp3");
-          this.updateLoadingProgress(100, "游戏准备就绪!");
-          this.hideLoadingScreen();
         }
 
-        initAudio(scene) {
+        initBgm(scene) {
           // 创建音效实例
-          this.spinSound = scene.sound.add("spinSound");
-          this.attackSound = scene.sound.add("attackSound");
           this.bgm = scene.sound.add("bgm", {
             loop: true,
-            volume: 0.5, // 降低音量避免干扰
+            volume: 0.7, // 降低音量避免干扰
           });
           // 播放背景音乐
           this.bgm.play();
@@ -446,8 +349,7 @@
 
         create() {
           const scene = this.game.scene.scenes[0];
-          this.initAudio(scene);
-          // 创建游戏背景
+
           this.createGameBackground(scene);
 
           // 创建商店背景
