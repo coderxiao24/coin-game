@@ -47,7 +47,7 @@
         padding: 12px;
         border-radius: 8px;
         cursor: pointer;
-        max-width: 50%;
+        width: 30%;
         transition: all 0.3s ease;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
       }
@@ -78,6 +78,45 @@
       .menu-button.success:hover {
         background: #27ae60;
       }
+
+      /* 新增加载进度样式 */
+      #loading-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 1001;
+        color: white;
+      }
+      .loading-title {
+        font-size: 28px;
+        margin-bottom: 20px;
+        color: #ffd700;
+      }
+      .loading-bar-container {
+        width: 80%;
+        max-width: 400px;
+        height: 20px;
+        background: #333;
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 10px;
+      }
+      .loading-bar {
+        height: 100%;
+        background: #4a90e2;
+        width: 0%;
+        transition: width 0.3s ease;
+      }
+      .loading-text {
+        font-size: 16px;
+      }
     </style>
   </head>
   <body>
@@ -85,6 +124,13 @@
     <div id="start-menu" style="display: none">
       <h1 class="menu-title">幸运硬币</h1>
       <div id="menu-buttons"></div>
+    </div>
+    <div id="loading-container" style="display: none">
+      <h2 class="loading-title">加载中...</h2>
+      <div class="loading-bar-container">
+        <div class="loading-bar" id="loading-bar"></div>
+      </div>
+      <div class="loading-text" id="loading-text">0%</div>
     </div>
     <script>
       // 游戏配置常量
@@ -225,6 +271,7 @@
           this.gameState = new GameState();
           this.coinSprites = [];
           this.helperSprites = [];
+          this.audioLoaded = false;
           this.showStartMenu();
         }
 
@@ -282,7 +329,29 @@
           startMenu.style.display = "none";
         }
 
+        showLoadingScreen() {
+          const loadingContainer = document.getElementById("loading-container");
+          loadingContainer.style.display = "flex";
+        }
+
+        hideLoadingScreen() {
+          const loadingContainer = document.getElementById("loading-container");
+          loadingContainer.style.display = "none";
+        }
+
+        updateLoadingProgress(progress, text) {
+          const loadingBar = document.getElementById("loading-bar");
+          const loadingText = document.getElementById("loading-text");
+
+          loadingBar.style.width = `${progress}%`;
+          loadingText.textContent = text || `${Math.round(progress)}%`;
+        }
+
         initGame() {
+          // 显示加载界面
+          this.showLoadingScreen();
+          this.updateLoadingProgress(10, "初始化游戏...");
+
           const totalWidth = GAME_CONFIG.WIDTH + GAME_CONFIG.SHOP_WIDTH;
 
           this.config = {
@@ -324,6 +393,8 @@
         preload() {
           const scene = this.game.scene.scenes[0];
 
+          this.updateLoadingProgress(30, "加载图像资源...");
+
           // 加载硬币精灵图
           Object.values(GAME_CONFIG.COIN_TYPES).forEach((coinType) => {
             scene.load.spritesheet(
@@ -346,11 +417,75 @@
             frameWidth: 48,
             frameHeight: 48,
           });
+
+          this.updateLoadingProgress(60, "加载背景...");
+
+          scene.load.image("woodenFloor", "public/floors/wooden.png");
+          scene.load.image("shopWoodenFloor", "public/floors/shopWooden.png");
+
+          // 音频延迟加载，先加载游戏核心资源
+          this.updateLoadingProgress(80, "加载核心资源...");
+
+          // 设置加载完成回调
+          scene.load.on("complete", () => {
+            this.updateLoadingProgress(100, "游戏准备就绪!");
+            setTimeout(() => {
+              this.hideLoadingScreen();
+              // 延迟加载音频，避免阻塞游戏初始化
+              this.loadAudioAsync(scene);
+            }, 500);
+          });
+        }
+
+        // 异步加载音频
+        loadAudioAsync(scene) {
+          // 创建音频加载进度跟踪
+          let audioLoadProgress = 0;
+          const totalAudioFiles = 3; // spinSound, attackSound, bgm
+
+          const updateAudioProgress = () => {
+            audioLoadProgress += 1;
+            const progress = Math.floor(
+              (audioLoadProgress / totalAudioFiles) * 100
+            );
+            console.log(`音频加载进度: ${progress}%`);
+          };
+
+          // 加载音频文件
           scene.load.audio("spinSound", "public/coin_spin.mp3");
           scene.load.audio("attackSound", "public/helper_attack.mp3");
           scene.load.audio("bgm", "public/bgm.mp3");
-          scene.load.image("woodenFloor", "public/floors/wooden.png");
-          scene.load.image("shopWoodenFloor", "public/floors/shopWooden.png");
+
+          // 监听音频加载完成
+          scene.load.on("filecomplete-audio-spinSound", () => {
+            updateAudioProgress();
+          });
+
+          scene.load.on("filecomplete-audio-attackSound", () => {
+            updateAudioProgress();
+          });
+
+          scene.load.on("filecomplete-audio-bgm", () => {
+            updateAudioProgress();
+            this.audioLoaded = true;
+            this.initAudio(scene);
+          });
+
+          // 开始加载音频
+          scene.load.start();
+        }
+
+        initAudio(scene) {
+          // 创建音效实例
+          this.spinSound = scene.sound.add("spinSound");
+          this.attackSound = scene.sound.add("attackSound");
+          this.bgm = scene.sound.add("bgm", {
+            loop: true,
+            volume: 0.5, // 降低音量避免干扰
+          });
+
+          // 播放背景音乐
+          this.bgm.play();
         }
 
         create() {
@@ -375,14 +510,6 @@
           this.createCoins(scene);
           this.createHelpers(scene);
 
-          // 加载音效
-          this.spinSound = scene.sound.add("spinSound");
-          this.attackSound = scene.sound.add("attackSound");
-          this.bgm = scene.sound.add("bgm", {
-            loop: true,
-          });
-
-          this.bgm.play();
           // 更新按钮状态
           this.updateButtons();
         }
@@ -652,8 +779,10 @@
           const scene = this.game.scene.scenes[0];
           coin.isSpinning = true;
 
-          // 播放音效
-          this.spinSound.play();
+          // 播放音效（如果已加载）
+          if (this.audioLoaded) {
+            this.spinSound.play();
+          }
 
           // 播放旋转动画
           coin.play(`${coin.coinData.type}Spin`);
@@ -994,7 +1123,11 @@
                   } else {
                     helper.flipX = false;
                   }
-                  this.attackSound.play();
+
+                  // 播放攻击音效（如果已加载）
+                  if (this.audioLoaded) {
+                    this.attackSound.play();
+                  }
 
                   // 先100ms挥剑再命中硬币
                   setTimeout(() => {
