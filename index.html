@@ -27,6 +27,7 @@
     <script>
       // 游戏配置常量
       const GAME_CONFIG = {
+        SAFE_MARGIN: 20,
         WIDTH: 300,
         SHOP_WIDTH: 100,
         HEIGHT: 800,
@@ -159,6 +160,7 @@
       class CoinGame {
         constructor() {
           this.gameState = new GameState();
+
           this.coinSprites = [];
           this.helperSprites = [];
           this.showStartMenu();
@@ -350,6 +352,8 @@
         create() {
           const scene = this.game.scene.scenes[0];
 
+          this.coinSprites = scene.physics.add.group();
+
           this.createGameBackground(scene);
 
           // 创建商店背景
@@ -366,6 +370,7 @@
 
           // 创建硬币
           this.createCoins(scene);
+          scene.physics.add.collider(this.coinSprites, this.coinSprites);
           this.createHelpers(scene);
 
           // 更新按钮状态
@@ -394,8 +399,8 @@
           shopFloor.setOrigin(0.5);
 
           scene.add
-            .text(GAME_CONFIG.WIDTH + GAME_CONFIG.SHOP_WIDTH / 2, 24, `商店`, {
-              fontSize: "24px",
+            .text(GAME_CONFIG.WIDTH + GAME_CONFIG.SHOP_WIDTH / 2, 28, `商店`, {
+              fontSize: "32px",
               fontWeight: "bold",
               color: GAME_CONFIG.DOLLAR_COLOR,
               stroke: "#000000",
@@ -429,7 +434,7 @@
             const button = scene.add
               .text(
                 GAME_CONFIG.WIDTH + GAME_CONFIG.SHOP_WIDTH / 2,
-                70 + 70 * index,
+                80 * (index + 1),
                 "",
                 {
                   fontSize: "20px",
@@ -450,12 +455,12 @@
 
           // 添加助手购买按钮
           this.helperButton = scene.add
-            .text(GAME_CONFIG.WIDTH + GAME_CONFIG.SHOP_WIDTH / 2, 280, "", {
+            .text(GAME_CONFIG.WIDTH + GAME_CONFIG.SHOP_WIDTH / 2, 320, "", {
               fontSize: "20px",
               color: "#fff",
               stroke: "#000",
               strokeThickness: 3,
-              padding: { x: 4, y: 4 },
+              padding: { x: 4, y: 8 },
               fixedWidth: GAME_CONFIG.SHOP_WIDTH - 20,
               align: "center",
             })
@@ -627,11 +632,14 @@
         }
 
         createCoinSprite(scene, coinData) {
-          const coin = scene.add.sprite(
+          const coin = this.coinSprites.create(
             coinData.x,
             coinData.y,
             `${coinData.type}Coin`
           );
+          coin.setCircle(8);
+          coin.setCollideWorldBounds(false);
+          coin.body.immovable = false;
           coin.setInteractive({ useHandCursor: true });
           coin.setScale(2); // 稍微放大硬币使其更易点击
 
@@ -640,10 +648,11 @@
           coin.isSpinning = false;
           coin.setDepth(0);
 
+          console.log(66, coin);
           // 添加点击事件
           coin.on("pointerdown", () => this.spinCoin(coin));
 
-          this.coinSprites.push(coin);
+          // this.coinSprites.push(coin);
           return coin;
         }
 
@@ -658,20 +667,18 @@
           // 播放旋转动画
           coin.play(`${coin.coinData.type}Spin`);
 
-          // 计算新位置
-          const margin = 20;
           const offsetX = Phaser.Math.Between(-40, 40);
           const offsetY = Phaser.Math.Between(-80, 80);
 
           const targetX = Phaser.Math.Clamp(
             coin.x + offsetX,
-            margin,
-            GAME_CONFIG.WIDTH - margin
+            GAME_CONFIG.SAFE_MARGIN,
+            GAME_CONFIG.WIDTH - GAME_CONFIG.SAFE_MARGIN
           );
           const targetY = Phaser.Math.Clamp(
             coin.y + offsetY,
-            margin,
-            GAME_CONFIG.HEIGHT - margin
+            GAME_CONFIG.SAFE_MARGIN,
+            GAME_CONFIG.HEIGHT - GAME_CONFIG.SAFE_MARGIN
           );
 
           // 移动动画
@@ -924,9 +931,9 @@
             return true;
           });
 
-          const availableCoins = this.coinSprites.filter(
-            (coin) => !coin.isSpinning
-          );
+          const availableCoins = this.coinSprites
+            .getChildren()
+            .filter((coin) => !coin.isSpinning);
 
           // Step 2: 构建所有可能的 (helper, coin, distance) 配对
           const pairs = [];
@@ -1037,6 +1044,33 @@
             }
 
             this.gameState.saveState();
+          });
+
+          this.coinSprites.children.entries.forEach((coin) => {
+            coin.x = Phaser.Math.Clamp(
+              coin.x,
+              GAME_CONFIG.SAFE_MARGIN,
+              GAME_CONFIG.WIDTH - GAME_CONFIG.SAFE_MARGIN
+            );
+            coin.y = Phaser.Math.Clamp(
+              coin.y,
+              GAME_CONFIG.SAFE_MARGIN,
+              GAME_CONFIG.HEIGHT - GAME_CONFIG.SAFE_MARGIN
+            );
+
+            if (
+              coin.x <= GAME_CONFIG.SAFE_MARGIN ||
+              coin.x >= GAME_CONFIG.WIDTH - GAME_CONFIG.SAFE_MARGIN
+            ) {
+              coin.body.velocity.x = 0; // 停止水平移动（防止“卡墙抖动”）
+            }
+
+            if (
+              coin.y <= GAME_CONFIG.SAFE_MARGIN ||
+              coin.y >= GAME_CONFIG.HEIGHT - GAME_CONFIG.SAFE_MARGIN
+            ) {
+              coin.body.velocity.y = 0;
+            }
           });
         }
       }
