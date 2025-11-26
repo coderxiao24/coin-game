@@ -900,71 +900,85 @@
           };
           return names[type] || type;
         }
-
         update() {
-          // 新增：记录当前帧已被选为目标的硬币
-          const claimedCoins = new Set();
-
-          this.helperSprites.forEach((helper) => {
-            // 劳累动画逻辑（不变）
+          // Step 1: 收集所有有效 helper（非疲劳状态）
+          const availableHelpers = this.helperSprites.filter((helper) => {
             if (
               helper.helperData.isTired &&
-              Date.now() - helper.helperData.isTired < 1000 * 5
+              Date.now() - helper.helperData.isTired < 5000
             ) {
-              if (Date.now() - helper.helperData.isTired > 1000 * 0.5) {
+              // 处理疲劳动画（同原来逻辑）
+              if (Date.now() - helper.helperData.isTired > 500) {
                 const animKey = `helper-death`;
                 if (helper.anims.currentAnim?.key !== animKey) {
                   helper.play(animKey);
                   helper.flipX = helper.helperData.direction === "left";
                 }
               }
-              return;
+              return false; // 疲劳中，不参与分配
             }
             delete helper.helperData.isTired;
+            return true;
+          });
 
-            let target = null,
-              distance = Infinity,
-              dx = Infinity,
-              dy = Infinity;
+          const availableCoins = this.coinSprites.filter(
+            (coin) => !coin.isSpinning
+          );
 
-            // 遍历所有硬币，但跳过已被其他 helper 选中的
-            for (let coin of this.coinSprites) {
-              if (coin.isSpinning) continue;
-              if (claimedCoins.has(coin)) continue; // 跳过已被认领的硬币
+          // Step 2: 构建所有可能的 (helper, coin, distance) 配对
+          const pairs = [];
+          for (const helper of availableHelpers) {
+            for (const coin of availableCoins) {
+              const dx = coin.x - helper.x;
+              const dy = coin.y - helper.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              pairs.push({ helper, coin, dist, dx, dy });
+            }
+          }
 
-              const currentDx = coin.x - helper.x;
-              const currentDy = coin.y - helper.y;
-              const currentDistance = Math.sqrt(
-                currentDx ** 2 + currentDy ** 2
-              );
+          // Step 3: 按距离升序排序（最近的优先匹配）
+          pairs.sort((a, b) => a.dist - b.dist);
 
-              if (currentDistance < distance) {
-                distance = currentDistance;
-                target = coin;
-                dx = currentDx;
-                dy = currentDy;
-              }
+          // Step 4: 贪心分配（确保一对一）
+          const assignedHelpers = new Set();
+          const assignedCoins = new Set();
+          const assignments = new Map(); // helper → { coin, dx, dy, dist }
+
+          for (const { helper, coin, dx, dy, dist } of pairs) {
+            if (assignedHelpers.has(helper) || assignedCoins.has(coin)) {
+              continue; // 已分配，跳过
+            }
+            assignedHelpers.add(helper);
+            assignedCoins.add(coin);
+            assignments.set(helper, { coin, dx, dy, dist });
+          }
+
+          // Step 5: 更新每个 helper 的行为
+          this.helperSprites.forEach((helper) => {
+            // 先处理疲劳中的 helper（已在 availableHelpers 过滤，但需保持动画）
+            if (
+              helper.helperData.isTired &&
+              Date.now() - helper.helperData.isTired < 5000
+            ) {
+              // 动画已在上面处理过，这里可跳过或保留检查
+              return;
             }
 
-            // 如果找到了有效目标
-            if (target) {
-              // 标记这个硬币已被占用
-              claimedCoins.add(target);
+            const assignment = assignments.get(helper);
+            if (assignment) {
+              const { coin, dx, dy, dist } = assignment;
 
-              // 方向判断（不变）
+              // 确定方向
               if (Math.abs(dx) > Math.abs(dy)) {
                 helper.helperData.direction = dx > 0 ? "right" : "left";
               } else {
                 helper.helperData.direction = dy > 0 ? "down" : "up";
               }
 
-              // 移动 or 攻击
-              if (distance > 20) {
+              if (dist > 20) {
+                // 移动
                 const speed = 100;
-                helper.setVelocity(
-                  (dx / distance) * speed,
-                  (dy / distance) * speed
-                );
+                helper.setVelocity((dx / dist) * speed, (dy / dist) * speed);
 
                 const animKey = `helper-move-${
                   helper.helperData.direction === "left"
@@ -992,7 +1006,7 @@
                   this.attackSound?.play();
 
                   setTimeout(() => {
-                    this.spinCoin(target);
+                    this.spinCoin(coin);
                   }, 100);
 
                   helper.helperData.isTired = Date.now();
@@ -1015,7 +1029,7 @@
                   helper.flipX = false;
                 }
               }
-              // 没有目标：停止移动
+              // 没有目标：停止
               helper.setVelocity(0, 0);
             }
 
