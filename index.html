@@ -646,15 +646,15 @@
           const scene = this.game.scene.scenes[0];
           coin.isSpinning = true;
 
-          this.spinSound.play();
+          this.spinSound?.play();
 
           // 播放旋转动画
           coin.play(`${coin.coinData.type}Spin`);
 
           // 计算新位置
-          const margin = 64;
-          const offsetX = Phaser.Math.Between(-200, 200);
-          const offsetY = Phaser.Math.Between(-200, 200);
+          const margin = 20;
+          const offsetX = Phaser.Math.Between(-40, 40);
+          const offsetY = Phaser.Math.Between(-40, 40);
 
           const targetX = Phaser.Math.Clamp(
             coin.x + offsetX,
@@ -687,6 +687,7 @@
                 onComplete: () => {
                   // 停止旋转，播放闪光
                   coin.stop();
+                  coin.setFrame(0);
                   // 提高一些概率 防止玩家烦躁
                   if (Math.random() < 0.7) {
                     coin.play(`${coin.coinData.type}Flash`);
@@ -924,7 +925,7 @@
               dy = Infinity;
 
             for (let coin of this.coinSprites) {
-              if (coin.coinData.isSpinning) continue;
+              if (coin.isSpinning) continue;
               const currentDx = coin.x - helper.x;
               const currentDy = coin.y - helper.y;
               const currentDistance = Math.sqrt(
@@ -986,7 +987,7 @@
                     helper.flipX = false;
                   }
 
-                  this.attackSound.play();
+                  this.attackSound?.play();
 
                   // 先100ms挥剑再命中硬币
                   setTimeout(() => {
