@@ -20,10 +20,72 @@
         height: 100vh;
         background: #f0f0f0;
       }
+      #start-menu {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        color: white;
+      }
+      .menu-title {
+        font-size: 36px;
+        margin-bottom: 40px;
+        color: #ffd700;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+      }
+      .menu-button {
+        background: #4a90e2;
+        color: white;
+        border: none;
+        padding: 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        max-width: 50%;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+      }
+      #menu-buttons {
+        width: 100%;
+        display: flex;
+        justify-content: space-evenly;
+        align-items: center;
+      }
+      .menu-button:hover {
+        background: #357abd;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 8px rgba(0, 0, 0, 0.4);
+      }
+      .menu-button:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      }
+      .menu-button.warning {
+        background: #e74c3c;
+      }
+      .menu-button.warning:hover {
+        background: #c0392b;
+      }
+      .menu-button.success {
+        background: #2ecc71;
+      }
+      .menu-button.success:hover {
+        background: #27ae60;
+      }
     </style>
   </head>
   <body>
     <div id="game-container"></div>
+    <div id="start-menu" style="display: none">
+      <h1 class="menu-title">幸运硬币</h1>
+      <div id="menu-buttons"></div>
+    </div>
     <script>
       // 游戏配置常量
       const GAME_CONFIG = {
@@ -138,6 +200,23 @@
           localStorage.setItem("coins", JSON.stringify(this.coins));
           localStorage.setItem("helpers", JSON.stringify(this.helpers));
         }
+
+        // 检查是否有游玩记录
+        hasSaveData() {
+          return (
+            localStorage.getItem("score") !== null ||
+            localStorage.getItem("coins") !== null ||
+            localStorage.getItem("helpers") !== null
+          );
+        }
+
+        // 重置游戏数据
+        resetGame() {
+          this.score = 0;
+          this.coins = [];
+          this.helpers = [];
+          this.ensureSaved();
+        }
       }
 
       // 游戏主类
@@ -146,7 +225,61 @@
           this.gameState = new GameState();
           this.coinSprites = [];
           this.helperSprites = [];
-          this.initGame();
+          this.showStartMenu();
+        }
+
+        showStartMenu() {
+          const startMenu = document.getElementById("start-menu");
+          const menuButtons = document.getElementById("menu-buttons");
+
+          // 清空现有按钮
+          menuButtons.innerHTML = "";
+
+          // 检查是否有游玩记录
+          const hasSaveData = this.gameState.hasSaveData();
+
+          if (hasSaveData) {
+            // 有游玩记录：显示继续游戏和重新开始选项
+            const continueButton = document.createElement("button");
+            continueButton.className = "menu-button success";
+            continueButton.textContent = "继续游戏";
+            continueButton.onclick = () => {
+              this.hideStartMenu();
+              this.initGame();
+            };
+
+            const restartButton = document.createElement("button");
+            restartButton.className = "menu-button warning";
+            restartButton.textContent = "重新开始";
+            restartButton.onclick = () => {
+              if (confirm("确定要重新开始吗？这将清除您当前的所有进度！")) {
+                this.gameState.resetGame();
+                this.hideStartMenu();
+                this.initGame();
+              }
+            };
+
+            menuButtons.appendChild(continueButton);
+            menuButtons.appendChild(restartButton);
+          } else {
+            // 没有游玩记录：只显示开始游戏
+            const startButton = document.createElement("button");
+            startButton.className = "menu-button success";
+            startButton.textContent = "开始游戏";
+            startButton.onclick = () => {
+              this.hideStartMenu();
+              this.initGame();
+            };
+
+            menuButtons.appendChild(startButton);
+          }
+
+          startMenu.style.display = "flex";
+        }
+
+        hideStartMenu() {
+          const startMenu = document.getElementById("start-menu");
+          startMenu.style.display = "none";
         }
 
         initGame() {
@@ -215,6 +348,7 @@
           });
           scene.load.audio("spinSound", "public/coin_spin.mp3");
           scene.load.audio("attackSound", "public/helper_attack.mp3");
+          scene.load.audio("bgm", "public/bgm.mp3");
           scene.load.image("woodenFloor", "public/floors/wooden.png");
           scene.load.image("shopWoodenFloor", "public/floors/shopWooden.png");
         }
@@ -244,7 +378,11 @@
           // 加载音效
           this.spinSound = scene.sound.add("spinSound");
           this.attackSound = scene.sound.add("attackSound");
+          this.bgm = scene.sound.add("bgm", {
+            loop: true,
+          });
 
+          this.bgm.play();
           // 更新按钮状态
           this.updateButtons();
         }
