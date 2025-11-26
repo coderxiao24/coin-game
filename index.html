@@ -418,7 +418,8 @@
                 fontWeight: "bold",
               }
             )
-            .setOrigin(0.5);
+            .setOrigin(0.5)
+            .setDepth(9999);
         }
 
         createShopButtons(scene) {
@@ -637,6 +638,7 @@
           // 存储硬币数据
           coin.coinData = coinData;
           coin.isSpinning = false;
+          coin.setDepth(0);
 
           // 添加点击事件
           coin.on("pointerdown", () => this.spinCoin(coin));
@@ -650,7 +652,7 @@
 
           const scene = this.game.scene.scenes[0];
           coin.isSpinning = true;
-
+          coin.setDepth(1);
           this.spinSound?.play();
 
           // 播放旋转动画
@@ -718,6 +720,7 @@
 
                   // 重置旋转状态
                   coin.isSpinning = false;
+                  coin.setDepth(0);
                 },
               });
             },
