@@ -28,8 +28,8 @@
       // 游戏配置常量
       const GAME_CONFIG = {
         WIDTH: 300,
-        SHOP_WIDTH: 75,
-        HEIGHT: 667,
+        SHOP_WIDTH: 100,
+        HEIGHT: 800,
         DOLLAR_COLOR: "#E39500",
         COIN_TYPES: {
           COPPER: {
@@ -426,16 +426,21 @@
 
           Object.values(GAME_CONFIG.COIN_TYPES).forEach((coinType, index) => {
             const button = scene.add
-              .text(GAME_CONFIG.WIDTH + 10, 70 + 70 * index, "", {
-                fontSize: "20px",
-                color: "#fff",
-                stroke: "#000",
-                strokeThickness: 3,
-                padding: { x: 4, y: 8 },
-                fixedWidth: GAME_CONFIG.SHOP_WIDTH - 20,
-                align: "center",
-              })
-              .setOrigin(0)
+              .text(
+                GAME_CONFIG.WIDTH + GAME_CONFIG.SHOP_WIDTH / 2,
+                70 + 70 * index,
+                "",
+                {
+                  fontSize: "20px",
+                  color: "#fff",
+                  stroke: "#000",
+                  strokeThickness: 3,
+                  padding: { x: 4, y: 8 },
+                  fixedWidth: GAME_CONFIG.SHOP_WIDTH - 20,
+                  align: "center",
+                }
+              )
+              .setOrigin(0.5)
               .setInteractive({ useHandCursor: true })
               .on("pointerdown", () => this.buyCoin(coinType));
 
@@ -444,7 +449,7 @@
 
           // 添加助手购买按钮
           this.helperButton = scene.add
-            .text(GAME_CONFIG.WIDTH + 10, 280, "", {
+            .text(GAME_CONFIG.WIDTH + GAME_CONFIG.SHOP_WIDTH / 2, 280, "", {
               fontSize: "20px",
               color: "#fff",
               stroke: "#000",
@@ -453,7 +458,7 @@
               fixedWidth: GAME_CONFIG.SHOP_WIDTH - 20,
               align: "center",
             })
-            .setOrigin(0)
+            .setOrigin(0.5)
             .setInteractive({ useHandCursor: true })
             .on("pointerdown", () => this.buyHelper());
         }
@@ -654,7 +659,7 @@
           // 计算新位置
           const margin = 20;
           const offsetX = Phaser.Math.Between(-40, 40);
-          const offsetY = Phaser.Math.Between(-40, 40);
+          const offsetY = Phaser.Math.Between(-80, 80);
 
           const targetX = Phaser.Math.Clamp(
             coin.x + offsetX,
@@ -897,40 +902,42 @@
         }
 
         update() {
+          // 新增：记录当前帧已被选为目标的硬币
+          const claimedCoins = new Set();
+
           this.helperSprites.forEach((helper) => {
-            // 劳累动画
+            // 劳累动画逻辑（不变）
             if (
               helper.helperData.isTired &&
               Date.now() - helper.helperData.isTired < 1000 * 5
             ) {
-              // 这里等0.5s是为了等攻击动画播放完毕
               if (Date.now() - helper.helperData.isTired > 1000 * 0.5) {
                 const animKey = `helper-death`;
                 if (helper.anims.currentAnim?.key !== animKey) {
                   helper.play(animKey);
-                  if (helper.helperData.direction === "left") {
-                    helper.flipX = true;
-                  } else {
-                    helper.flipX = false;
-                  }
+                  helper.flipX = helper.helperData.direction === "left";
                 }
               }
               return;
             }
             delete helper.helperData.isTired;
 
-            let target,
+            let target = null,
               distance = Infinity,
               dx = Infinity,
               dy = Infinity;
 
+            // 遍历所有硬币，但跳过已被其他 helper 选中的
             for (let coin of this.coinSprites) {
               if (coin.isSpinning) continue;
+              if (claimedCoins.has(coin)) continue; // 跳过已被认领的硬币
+
               const currentDx = coin.x - helper.x;
               const currentDy = coin.y - helper.y;
               const currentDistance = Math.sqrt(
                 currentDx ** 2 + currentDy ** 2
               );
+
               if (currentDistance < distance) {
                 distance = currentDistance;
                 target = coin;
@@ -939,17 +946,21 @@
               }
             }
 
-            //移动和攻击动画
+            // 如果找到了有效目标
             if (target) {
+              // 标记这个硬币已被占用
+              claimedCoins.add(target);
+
+              // 方向判断（不变）
               if (Math.abs(dx) > Math.abs(dy)) {
                 helper.helperData.direction = dx > 0 ? "right" : "left";
               } else {
                 helper.helperData.direction = dy > 0 ? "down" : "up";
               }
 
-              //移动
+              // 移动 or 攻击
               if (distance > 20) {
-                const speed = 100; // 像素/秒
+                const speed = 100;
                 helper.setVelocity(
                   (dx / distance) * speed,
                   (dy / distance) * speed
@@ -963,33 +974,23 @@
 
                 if (helper.anims.currentAnim?.key !== animKey) {
                   helper.play(animKey);
-                  if (helper.helperData.direction === "left") {
-                    helper.flipX = true;
-                  } else {
-                    helper.flipX = false;
-                  }
+                  helper.flipX = helper.helperData.direction === "left";
                 }
               } else {
-                //攻击
+                // 攻击
                 const animKey = `helper-attack-${
                   helper.helperData.direction === "left"
                     ? "right"
                     : helper.helperData.direction
                 }`;
 
-                // 到达目标：停止 & 播放 attack 动画
                 helper.setVelocity(0, 0);
                 if (helper.anims.currentAnim?.key !== animKey) {
                   helper.play(animKey);
-                  if (helper.helperData.direction === "left") {
-                    helper.flipX = true;
-                  } else {
-                    helper.flipX = false;
-                  }
+                  helper.flipX = helper.helperData.direction === "left";
 
                   this.attackSound?.play();
 
-                  // 先100ms挥剑再命中硬币
                   setTimeout(() => {
                     this.spinCoin(target);
                   }, 100);
@@ -1000,6 +1001,22 @@
 
               helper.helperData.x = helper.x;
               helper.helperData.y = helper.y;
+            } else {
+              const animKey = `helper-idle-${
+                helper.helperData.direction === "left"
+                  ? "right"
+                  : helper.helperData.direction || "down"
+              }`;
+              if (helper.anims.currentAnim?.key !== animKey) {
+                helper.play(animKey);
+                if (helper.helperData.direction === "left") {
+                  helper.flipX = true;
+                } else {
+                  helper.flipX = false;
+                }
+              }
+              // 没有目标：停止移动
+              helper.setVelocity(0, 0);
             }
 
             this.gameState.saveState();
