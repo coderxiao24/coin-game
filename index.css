@@ -5,7 +5,6 @@ body {
   font-family: Arial, sans-serif;
 }
 #game-container {
-  height: 100vh;
   background: #f0f0f0;
 }
 #start-menu {
