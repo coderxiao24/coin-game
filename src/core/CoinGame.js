@@ -125,24 +125,9 @@ export default class CoinGame {
   }
 
   createHelpers(scene) {
-    this.gameState.helpers.forEach((item) => {
-      const helper = scene.physics.add.sprite(item.x, item.y, "helper");
-      helper.setScale(2);
-      helper.helperData = item;
-
-      const animKey = `helper-idle-${
-        helper.helperData.direction === "left"
-          ? "right"
-          : helper.helperData.direction || "down"
-      }`;
-      helper.play(animKey);
-      if (helper.helperData.direction === "left") {
-        helper.flipX = true;
-      } else {
-        helper.flipX = false;
-      }
-
-      this.helperSprites.push(helper);
+    // 创建所有助手精灵
+    this.gameState.helpers.forEach((helperData) => {
+      this.createHelperSprite(scene, helperData);
     });
   }
 
@@ -184,6 +169,31 @@ export default class CoinGame {
     coin.on("pointerdown", () => this.spinCoin(coin));
 
     return coin;
+  }
+
+  createHelperSprite(scene, helperData) {
+    const helper = scene.physics.add.sprite(
+      helperData.x,
+      helperData.y,
+      "helper"
+    );
+    helper.setScale(2);
+    helper.helperData = helperData;
+
+    const animKey = `helper-idle-${
+      helper.helperData.direction === "left"
+        ? "right"
+        : helper.helperData.direction || "down"
+    }`;
+    helper.play(animKey);
+    if (helper.helperData.direction === "left") {
+      helper.flipX = true;
+    } else {
+      helper.flipX = false;
+    }
+
+    this.helperSprites.push(helper);
+    return helper;
   }
 
   spinCoin(coin) {
@@ -331,8 +341,14 @@ export default class CoinGame {
       this.scoreText.setText(`${this.gameState.score}$`);
 
       // 创建新硬币
-      const x = Phaser.Math.Between(50, GameConfig.WIDTH - 50);
-      const y = Phaser.Math.Between(50, GameConfig.HEIGHT - 50);
+      const x = Phaser.Math.Between(
+        GameConfig.SAFE_MARGIN,
+        GameConfig.WIDTH - GameConfig.SAFE_MARGIN
+      );
+      const y = Phaser.Math.Between(
+        GameConfig.SAFE_MARGIN,
+        GameConfig.HEIGHT - GameConfig.SAFE_MARGIN
+      );
 
       const newCoin = {
         type: coinType.name,
@@ -358,8 +374,14 @@ export default class CoinGame {
       this.scoreText.setText(`${this.gameState.score}$`);
 
       // 创建新助手
-      const x = Phaser.Math.Between(50, GameConfig.WIDTH - 50);
-      const y = Phaser.Math.Between(50, GameConfig.HEIGHT - 50);
+      const x = Phaser.Math.Between(
+        GameConfig.SAFE_MARGIN,
+        GameConfig.WIDTH - GameConfig.SAFE_MARGIN
+      );
+      const y = Phaser.Math.Between(
+        GameConfig.SAFE_MARGIN,
+        GameConfig.HEIGHT - GameConfig.SAFE_MARGIN
+      );
 
       const newHelper = {
         x,
@@ -368,18 +390,7 @@ export default class CoinGame {
       };
 
       this.gameState.addHelper(newHelper);
-
-      // 创建助手精灵
-      const scene = this.game.scene.scenes[0];
-      const helper = scene.physics.add.sprite(x, y, "helper");
-      helper.setScale(2);
-      helper.helperData = newHelper;
-
-      const animKey = `helper-idle-down`;
-      helper.play(animKey);
-      helper.flipX = false;
-
-      this.helperSprites.push(helper);
+      this.createHelperSprite(this.game.scene.scenes[0], newHelper);
 
       // 更新按钮状态
       this.uiManager.updateButtons();
