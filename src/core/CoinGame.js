@@ -154,6 +154,7 @@ export default class CoinGame {
       coinData.y,
       `${coinData.type}Coin`
     );
+    coin.setDepth(1);
     coin.setCircle(8);
     coin.setCollideWorldBounds(false);
     coin.body.immovable = false;
@@ -163,7 +164,6 @@ export default class CoinGame {
     // 存储硬币数据
     coin.coinData = coinData;
     coin.isSpinning = false;
-    coin.setDepth(0);
 
     // 添加点击事件
     coin.on("pointerdown", () => this.spinCoin(coin));
@@ -201,7 +201,7 @@ export default class CoinGame {
 
     const scene = this.game.scene.scenes[0];
     coin.isSpinning = true;
-    coin.setDepth(1);
+
     this.spinSound?.play();
 
     // 播放旋转动画
@@ -267,7 +267,6 @@ export default class CoinGame {
 
             // 重置旋转状态
             coin.isSpinning = false;
-            coin.setDepth(0);
           },
         });
       },
