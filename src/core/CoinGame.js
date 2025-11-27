@@ -86,9 +86,41 @@ export default class CoinGame {
     this.uiManager.createShopButtons(scene);
     this.animationManager.createCoinAnimations();
     this.animationManager.createHelperAnimations();
+    this.animationManager.createSlimeAnimations();
     this.createCoins(scene);
     scene.physics.add.collider(this.coinSprites, this.coinSprites);
     this.createHelpers(scene);
+
+    const slime = scene.physics.add.sprite(200, 100, "slime");
+    slime.setScale(2);
+    slime.play("slime-idle-right");
+
+    const slime0 = scene.physics.add.sprite(200, 200, "slime");
+    slime0.setScale(2);
+    slime0.play("slime-move-right");
+
+    const slime1 = scene.physics.add.sprite(200, 300, "slime");
+    slime1.setScale(2);
+    slime1.play("slime-3-right");
+    const slime2 = scene.physics.add.sprite(200, 400, "slime");
+    slime2.setScale(2);
+    slime2.play("slime-idle-right");
+    setTimeout(() => {
+      slime2.play("slime-4-right");
+    }, 2000);
+
+    slime2.on(
+      "animationcomplete",
+      function (anim) {
+        if (anim.key === "slime-4-right") {
+          slime2.play("slime-death");
+        } else if (anim.key === "slime-death") {
+          slime2.destroy(); // 或 setVisible(false), disableBody() 等
+        }
+      },
+      this
+    );
+
     this.uiManager.updateButtons();
   }
 

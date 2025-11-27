@@ -16,6 +16,10 @@ export default class ResourceLoader {
       frameWidth: 48,
       frameHeight: 48,
     });
+    this.scene.load.spritesheet(`slime`, `public/slime.png`, {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
 
     // 加载硬币精灵图
     Object.values(GameConfig.COIN_TYPES).forEach((coinType) => {

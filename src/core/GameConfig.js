@@ -45,6 +45,7 @@ export default class GameConfig {
   static get ANIMATION() {
     return {
       HELPER_FRAME_RATE: 12,
+      SLIME_FRAME_RATE: 10,
       SPIN_FRAME_RATE: 18,
       FLASH_FRAME_RATE: 12,
       SPIN_DURATION: 500,

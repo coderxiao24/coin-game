@@ -83,4 +83,56 @@ export default class AnimationManager {
       repeat: 0,
     });
   }
+
+  createSlimeAnimations() {
+    const directions = ["down", "right", "up"];
+
+    directions.forEach((direction, index) => {
+      this.scene.anims.create({
+        key: `slime-idle-${direction}`,
+        frames: this.scene.anims.generateFrameNumbers(`slime`, {
+          start: index * 7,
+          end: index * 7 + 3,
+        }),
+        frameRate: GameConfig.ANIMATION.SLIME_FRAME_RATE,
+        repeat: -1,
+      });
+      this.scene.anims.create({
+        key: `slime-move-${direction}`,
+        frames: this.scene.anims.generateFrameNumbers(`slime`, {
+          start: (index + 3) * 7,
+          end: (index + 3) * 7 + 5,
+        }),
+        frameRate: GameConfig.ANIMATION.SLIME_FRAME_RATE,
+        repeat: -1,
+      });
+      this.scene.anims.create({
+        key: `slime-3-${direction}`,
+        frames: this.scene.anims.generateFrameNumbers(`slime`, {
+          start: (index + 6) * 7,
+          end: (index + 6) * 7 + 6,
+        }),
+        frameRate: GameConfig.ANIMATION.SLIME_FRAME_RATE,
+        repeat: -1,
+      });
+      this.scene.anims.create({
+        key: `slime-4-${direction}`,
+        frames: this.scene.anims.generateFrameNumbers(`slime`, {
+          start: (index + 9) * 7,
+          end: (index + 9) * 7 + 2,
+        }),
+        frameRate: GameConfig.ANIMATION.SLIME_FRAME_RATE,
+        repeat: 0,
+      });
+    });
+    this.scene.anims.create({
+      key: `slime-death`,
+      frames: this.scene.anims.generateFrameNumbers(`slime`, {
+        start: 84,
+        end: 88,
+      }),
+      frameRate: GameConfig.ANIMATION.SLIME_FRAME_RATE,
+      repeat: 0,
+    });
+  }
 }
