@@ -107,7 +107,7 @@ export default class AnimationManager {
         repeat: -1,
       });
       this.scene.anims.create({
-        key: `slime-3-${direction}`,
+        key: `slime-attack-${direction}`,
         frames: this.scene.anims.generateFrameNumbers(`slime`, {
           start: (index + 6) * 7,
           end: (index + 6) * 7 + 6,
@@ -116,7 +116,7 @@ export default class AnimationManager {
         repeat: -1,
       });
       this.scene.anims.create({
-        key: `slime-4-${direction}`,
+        key: `slime-hit-${direction}`,
         frames: this.scene.anims.generateFrameNumbers(`slime`, {
           start: (index + 9) * 7,
           end: (index + 9) * 7 + 2,

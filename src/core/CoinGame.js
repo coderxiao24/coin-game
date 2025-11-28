@@ -91,35 +91,36 @@ export default class CoinGame {
     scene.physics.add.collider(this.coinSprites, this.coinSprites);
     this.createHelpers(scene);
 
-    const slime = scene.physics.add.sprite(200, 100, "slime");
-    slime.setScale(2);
-    slime.play("slime-idle-right");
+    //史莱姆动画测试
+    // const slime = scene.physics.add.sprite(200, 100, "slime");
+    // slime.setScale(2);
+    // slime.play("slime-idle-right");
 
-    const slime0 = scene.physics.add.sprite(200, 200, "slime");
-    slime0.setScale(2);
-    slime0.play("slime-move-right");
+    // const slime0 = scene.physics.add.sprite(200, 200, "slime");
+    // slime0.setScale(2);
+    // slime0.play("slime-move-right");
 
-    const slime1 = scene.physics.add.sprite(200, 300, "slime");
-    slime1.setScale(2);
-    slime1.play("slime-3-right");
-    const slime2 = scene.physics.add.sprite(200, 400, "slime");
-    slime2.setScale(2);
-    slime2.play("slime-idle-right");
-    setTimeout(() => {
-      slime2.play("slime-4-right");
-    }, 2000);
+    // const slime1 = scene.physics.add.sprite(200, 300, "slime");
+    // slime1.setScale(2);
+    // slime1.play("slime-attack-right");
+    // const slime2 = scene.physics.add.sprite(200, 400, "slime");
+    // slime2.setScale(2);
+    // slime2.play("slime-idle-right");
+    // setTimeout(() => {
+    //   slime2.play("slime-hit-right");
+    // }, 2000);
 
-    slime2.on(
-      "animationcomplete",
-      function (anim) {
-        if (anim.key === "slime-4-right") {
-          slime2.play("slime-death");
-        } else if (anim.key === "slime-death") {
-          slime2.destroy(); // 或 setVisible(false), disableBody() 等
-        }
-      },
-      this
-    );
+    // slime2.on(
+    //   "animationcomplete",
+    //   function (anim) {
+    //     if (anim.key === "slime-hit-right") {
+    //       slime2.play("slime-death");
+    //     } else if (anim.key === "slime-death") {
+    //       slime2.destroy(); // 或 setVisible(false), disableBody() 等
+    //     }
+    //   },
+    //   scene
+    // );
 
     this.uiManager.updateButtons();
   }
@@ -218,11 +219,19 @@ export default class CoinGame {
         : helper.helperData.direction || "down"
     }`;
     helper.play(animKey);
-    if (helper.helperData.direction === "left") {
-      helper.flipX = true;
-    } else {
-      helper.flipX = false;
-    }
+
+    helper.flipX = helper.helperData.direction === "left";
+
+    helper.on(
+      "animationcomplete",
+      function (anim) {
+        if (anim.key.startsWith("helper-attack")) {
+          helper.play("helper-death");
+          helper.flipX = helper.helperData.direction === "left";
+        }
+      },
+      scene
+    );
 
     this.helperSprites.push(helper);
     return helper;
@@ -457,14 +466,6 @@ export default class CoinGame {
         helper.helperData.isTired &&
         Date.now() - helper.helperData.isTired < 5000
       ) {
-        // 处理疲劳动画（同原来逻辑）
-        if (Date.now() - helper.helperData.isTired > 500) {
-          const animKey = `helper-death`;
-          if (helper.anims.currentAnim?.key !== animKey) {
-            helper.play(animKey);
-            helper.flipX = helper.helperData.direction === "left";
-          }
-        }
         return false; // 疲劳中，不参与分配
       }
       delete helper.helperData.isTired;
@@ -504,16 +505,7 @@ export default class CoinGame {
     }
 
     // Step 5: 更新每个 helper 的行为
-    this.helperSprites.forEach((helper) => {
-      // 先处理疲劳中的 helper（已在 availableHelpers 过滤，但需保持动画）
-      if (
-        helper.helperData.isTired &&
-        Date.now() - helper.helperData.isTired < 5000
-      ) {
-        // 动画已在上面处理过，这里可跳过或保留检查
-        return;
-      }
-
+    availableHelpers.forEach((helper) => {
       const assignment = assignments.get(helper);
       if (assignment) {
         const { coin, dx, dy, dist } = assignment;
@@ -533,7 +525,7 @@ export default class CoinGame {
           const animKey = `helper-move-${
             helper.helperData.direction === "left"
               ? "right"
-              : helper.helperData.direction
+              : helper.helperData.direction || "down"
           }`;
 
           if (helper.anims.currentAnim?.key !== animKey) {
@@ -545,7 +537,7 @@ export default class CoinGame {
           const animKey = `helper-attack-${
             helper.helperData.direction === "left"
               ? "right"
-              : helper.helperData.direction
+              : helper.helperData.direction || "down"
           }`;
 
           helper.setVelocity(0, 0);
@@ -573,19 +565,15 @@ export default class CoinGame {
         }`;
         if (helper.anims.currentAnim?.key !== animKey) {
           helper.play(animKey);
-          if (helper.helperData.direction === "left") {
-            helper.flipX = true;
-          } else {
-            helper.flipX = false;
-          }
+          helper.flipX = helper.helperData.direction === "left";
         }
         // 没有目标：停止
         helper.setVelocity(0, 0);
       }
-
       this.gameState.saveState();
     });
 
+    // 防止硬币挤出边界
     this.coinSprites.children.entries.forEach((coin) => {
       coin.x = Phaser.Math.Clamp(
         coin.x,
