@@ -3,13 +3,15 @@ import UIManager from "../managers/UIManager.js";
 import ResourceLoader from "../managers/ResourceLoader.js";
 import AnimationManager from "../managers/AnimationManager.js";
 import GameConfig from "./GameConfig.js";
+import Coin from "./Coin.js";
 
 // 游戏主类
 export default class CoinGame {
+  coinGroup = null;
   constructor() {
     this.gameState = new GameState();
     this.uiManager = new UIManager(this);
-    this.coinSprites = [];
+    this.coins = []; // 存储Coin实例
     this.helperSprites = [];
     this.uiManager.showStartMenu();
   }
@@ -47,6 +49,15 @@ export default class CoinGame {
           debug: false,
         },
       },
+      input: {
+        activePointers: 4,
+        touch: true,
+        mouse: true,
+      },
+      render: {
+        antialias: false,
+        pixelArt: true, // 如果使用像素风格
+      },
     };
 
     this.game = new Phaser.Game(this.config);
@@ -75,7 +86,7 @@ export default class CoinGame {
   create() {
     const scene = this.game.scene.scenes[0];
 
-    this.coinSprites = scene.physics.add.group();
+    this.coinGroup = scene.physics.add.group();
 
     // 创建动画管理器
     this.animationManager = new AnimationManager(scene);
@@ -88,7 +99,7 @@ export default class CoinGame {
     this.animationManager.createHelperAnimations();
     this.animationManager.createSlimeAnimations();
     this.createCoins(scene);
-    scene.physics.add.collider(this.coinSprites, this.coinSprites);
+    scene.physics.add.collider(this.coinGroup, this.coinGroup);
     this.createHelpers(scene);
 
     //史莱姆动画测试
@@ -175,32 +186,15 @@ export default class CoinGame {
       });
     }
 
-    // 创建所有硬币精灵
+    // 创建所有硬币实例
     this.gameState.coins.forEach((coinData) => {
-      this.createCoinSprite(scene, coinData);
+      this.createCoinInstance(scene, coinData);
     });
   }
 
-  createCoinSprite(scene, coinData) {
-    const coin = this.coinSprites.create(
-      coinData.x,
-      coinData.y,
-      `${coinData.type}Coin`
-    );
-    coin.setDepth(1);
-    coin.setCircle(8);
-    coin.setCollideWorldBounds(false);
-    coin.body.immovable = false;
-    coin.setInteractive({ useHandCursor: true });
-    coin.setScale(2); // 稍微放大硬币使其更易点击
-
-    // 存储硬币数据
-    coin.coinData = coinData;
-    coin.isSpinning = false;
-
-    // 添加点击事件
-    coin.on("pointerdown", () => this.spinCoin(coin));
-
+  createCoinInstance(scene, coinData) {
+    const coin = new Coin(scene, coinData, this);
+    this.coins.push(coin);
     return coin;
   }
 
@@ -237,141 +231,6 @@ export default class CoinGame {
     return helper;
   }
 
-  spinCoin(coin) {
-    if (coin.isSpinning) return;
-
-    const scene = this.game.scene.scenes[0];
-    coin.isSpinning = true;
-
-    this.spinSound?.play();
-
-    // 播放旋转动画
-    coin.play(`${coin.coinData.type}Spin`);
-
-    const offsetX = Phaser.Math.Between(-40, 40);
-    const offsetY = Phaser.Math.Between(-80, 80);
-
-    const targetX = Phaser.Math.Clamp(
-      coin.x + offsetX,
-      GameConfig.SAFE_MARGIN,
-      GameConfig.WIDTH - GameConfig.SAFE_MARGIN
-    );
-    const targetY = Phaser.Math.Clamp(
-      coin.y + offsetY,
-      GameConfig.SAFE_MARGIN,
-      GameConfig.HEIGHT - GameConfig.SAFE_MARGIN
-    );
-
-    // 移动动画
-    scene.tweens.add({
-      targets: coin,
-      scaleX: 4,
-      scaleY: 4,
-      x: targetX,
-      y: targetY,
-      duration: GameConfig.ANIMATION.SPIN_DURATION,
-      ease: "Quad.easeOut",
-      onComplete: () => {
-        // 缩放回原始大小
-        scene.tweens.add({
-          targets: coin,
-          scaleX: 2,
-          scaleY: 2,
-          duration: GameConfig.ANIMATION.SPIN_DURATION,
-          ease: "Quad.easeIn",
-          onComplete: () => {
-            // 停止旋转，播放闪光
-            coin.stop();
-            coin.setFrame(0);
-            // 提高一些概率 防止玩家烦躁
-            if (Math.random() < 0.7) {
-              coin.play(`${coin.coinData.type}Flash`);
-
-              // 显示加分文本
-              this.showScoreText(scene, coin, coin.coinData.value);
-
-              // 更新分数
-              this.gameState.setScore(
-                this.gameState.score + coin.coinData.value
-              );
-              this.scoreText.setText(`${this.gameState.score}$`);
-
-              // 更新按钮状态
-              this.uiManager.updateButtons();
-            } else {
-              this.showSorryText(scene, coin);
-            }
-            // 更新硬币位置
-            coin.coinData.x = targetX;
-            coin.coinData.y = targetY;
-            this.gameState.saveState();
-
-            // 重置旋转状态
-            coin.isSpinning = false;
-          },
-        });
-      },
-    });
-  }
-
-  showScoreText(scene, coin, value) {
-    // 创建数值文本，设置为白色填充，黑色边框
-    const valueText = scene.add
-      .text(coin.x, coin.y - 30, `${value}`, {
-        fontSize: "16px",
-        fontWeight: "bold",
-        color: "#ffffff", // 白色填充
-        stroke: "#000000",
-        strokeThickness: 4,
-      })
-      .setOrigin(0.5);
-
-    // 创建货币符号文本，设置为黄色填充，黑色边框
-    const dollarSign = scene.add
-      .text(valueText.x + valueText.width / 2 + 4, coin.y - 30, `$`, {
-        fontSize: "16px",
-        fontWeight: "bold",
-        color: GameConfig.DOLLAR_COLOR,
-        stroke: "#000000",
-        strokeThickness: 4,
-      })
-      .setOrigin(0.5);
-
-    // 同时对两个文本应用动画效果
-    scene.tweens.add({
-      targets: [valueText, dollarSign],
-      alpha: 0,
-      y: valueText.y - 20,
-      duration: GameConfig.ANIMATION.FLASH_DURATION,
-      ease: "Cubic.easeOut",
-      onComplete: () => {
-        valueText.destroy();
-        dollarSign.destroy();
-      },
-    });
-  }
-
-  showSorryText(scene, coin) {
-    const Text = scene.add
-      .text(coin.x, coin.y - 30, `反面没钱`, {
-        fontSize: "16px",
-        fontWeight: "bold",
-        color: "#fff",
-        stroke: "#000",
-        strokeThickness: 4,
-      })
-      .setOrigin(0.5);
-
-    scene.tweens.add({
-      targets: Text,
-      alpha: 0,
-      y: Text.y - 20,
-      duration: GameConfig.ANIMATION.FLASH_DURATION,
-      ease: "Cubic.easeOut",
-      onComplete: () => Text.destroy(),
-    });
-  }
-
   buyCoin(coinType) {
     const price = this.calculatePrice(coinType);
 
@@ -398,7 +257,7 @@ export default class CoinGame {
       };
 
       this.gameState.addCoin(newCoin);
-      this.createCoinSprite(this.game.scene.scenes[0], newCoin);
+      this.createCoinInstance(this.game.scene.scenes[0], newCoin);
 
       // 更新按钮状态
       this.uiManager.updateButtons();
@@ -472,16 +331,15 @@ export default class CoinGame {
       return true;
     });
 
-    const availableCoins = this.coinSprites
-      .getChildren()
-      .filter((coin) => !coin.isSpinning);
+    const availableCoins = this.coins.filter((coin) => !coin.isSpinning);
 
     // Step 2: 构建所有可能的 (helper, coin, distance) 配对
     const pairs = [];
     for (const helper of availableHelpers) {
       for (const coin of availableCoins) {
-        const dx = coin.x - helper.x;
-        const dy = coin.y - helper.y;
+        const sprite = coin.getSprite();
+        const dx = sprite.x - helper.x;
+        const dy = sprite.y - helper.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         pairs.push({ helper, coin, dist, dx, dy });
       }
@@ -548,7 +406,7 @@ export default class CoinGame {
             this.attackSound?.play();
 
             setTimeout(() => {
-              this.spinCoin(coin);
+              coin.spin();
             }, 100);
 
             helper.helperData.isTired = Date.now();
@@ -574,7 +432,8 @@ export default class CoinGame {
     });
 
     // 防止硬币挤出边界
-    this.coinSprites.children.entries.forEach((coin) => {
+    this.coins.forEach((coinInstance) => {
+      const coin = coinInstance.getSprite();
       coin.x = Phaser.Math.Clamp(
         coin.x,
         GameConfig.SAFE_MARGIN,
