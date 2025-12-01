@@ -52,4 +52,15 @@ export default class GameConfig {
       FLASH_DURATION: 2000,
     };
   }
+
+  // 关卡模式配置
+  static get LEVEL_MODE() {
+    return {
+      ENABLED: true, // 启用关卡模式
+      LEVEL_TIME: 60, // 每关时间（秒）
+      FIRST_LEVEL_TARGET: 50, // 第一关目标分数
+      TARGET_MULTIPLIER: 2, // 每关目标分数乘数
+      MAX_LEVEL: 100, // 最大关卡数
+    };
+  }
 }

@@ -38,7 +38,12 @@ export default class Coin {
 
   // 旋转硬币
   spin() {
-    if (this.isSpinning || this.coinData.active === false) return;
+    if (
+      this.isSpinning ||
+      this.coinData.active === false ||
+      this.gameInstance.paused
+    )
+      return;
 
     this.isSpinning = true;
 

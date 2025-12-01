@@ -110,15 +110,24 @@ export default class CoinGame {
 
     this.uiManager.updateButtons();
 
+    // 创建关卡UI
+    this.createLevelUI(scene);
+
+    // 初始化关卡计时器
+    this.initLevelTimer(scene);
+
     this.slimeSpawner = scene.time.addEvent({
       delay: 1000 * 5,
       callback: () => {
         this.slimes = this.slimes.filter((v) => v.slimeData.active !== false);
-        this.randomCreateSlime();
+        if (!this.paused) this.randomCreateSlime();
       },
       callbackScope: this,
       loop: true,
     });
+
+    // 初始化暂停状态
+    this.paused = false;
   }
 
   createGameBackground(scene) {
@@ -353,7 +362,19 @@ export default class CoinGame {
     this.createSlimeInstance(this.game.scene.scenes[0], newSlime);
   }
   update() {
-    // Step 1: 收集所有有效 helper（非疲劳状态）
+    // 如果游戏暂停，直接返回
+    if (this.paused) {
+      this.helperSprites.forEach((helper) => {
+        helper.setVelocity(0, 0);
+      });
+      this.slimes.forEach((slime) => {
+        slime.takeDamage();
+        this.gameState.delSlime(slime.slimeData);
+      });
+      return;
+    }
+
+    // Step 1:收集所有有效 helper（非疲劳状态）
     const availableHelpers = this.helperSprites.filter((helper) => {
       if (
         helper.helperData.isTired &&
@@ -377,7 +398,7 @@ export default class CoinGame {
       (slime) => slime.slimeData.active !== false
     );
 
-    // Step 2: 构建三种配对关系
+    // Step 2:构建三种配对关系
 
     // 1. 史莱姆 -> 硬币的配对（史莱姆攻击硬币）
     const slimeToCoinPairs = [];
@@ -430,12 +451,12 @@ export default class CoinGame {
       }
     }
 
-    // Step 3: 按距离升序排序
+    // Step 3:按距离升序排序
     slimeToCoinPairs.sort((a, b) => a.dist - b.dist);
     helperToSlimePairs.sort((a, b) => a.dist - b.dist);
     helperToCoinPairs.sort((a, b) => a.dist - b.dist);
 
-    // Step 4: 贪心分配
+    // Step 4:贪心分配
     const assignedSlimes = new Set();
     const assignedCoins = new Set();
     const assignedHelpers = new Set();
@@ -481,7 +502,7 @@ export default class CoinGame {
       }
     }
 
-    // Step 5: 更新史莱姆行为（攻击硬币）
+    // Step 5:更新史莱姆行为（攻击硬币）
     activeNonAttackingSlimes.forEach((slime) => {
       if (slime.slimeData.active === false) return;
       const assignment = slimeAssignments.get(slime);
@@ -512,7 +533,7 @@ export default class CoinGame {
       }
     });
 
-    // Step 6: 更新helper行为（攻击史莱姆或硬币）
+    // Step 6:更新helper行为（攻击史莱姆或硬币）
     availableHelpers.forEach((helper) => {
       const assignment = helperAssignments.get(helper);
       if (assignment) {
@@ -620,5 +641,243 @@ export default class CoinGame {
     });
 
     this.gameState.saveState();
+
+    // 更新关卡UI
+    this.updateLevelUI();
+  }
+
+  // 创建关卡UI
+  createLevelUI(scene) {
+    // 关卡文本
+    this.levelText = scene.add
+      .text(
+        GameConfig.WIDTH + GameConfig.SHOP_WIDTH / 2,
+        GameConfig.HEIGHT - 150,
+        ``,
+        {
+          fontSize: "20px",
+          color: "#fff",
+          stroke: "#000",
+          strokeThickness: 3,
+          fontWeight: "bold",
+        }
+      )
+      .setOrigin(0.5)
+      .setDepth(9999);
+
+    // 时间文本
+    this.timeText = scene.add
+      .text(
+        GameConfig.WIDTH + GameConfig.SHOP_WIDTH / 2,
+        GameConfig.HEIGHT - 100,
+        ``,
+        {
+          fontSize: "18px",
+          color: "#4a90e2",
+          stroke: "#000",
+          strokeThickness: 2,
+        }
+      )
+      .setOrigin(0.5)
+      .setDepth(9999);
+
+    // 目标分数文本
+    this.targetText = scene.add
+      .text(
+        GameConfig.WIDTH + GameConfig.SHOP_WIDTH / 2,
+        GameConfig.HEIGHT - 50,
+        ``,
+        {
+          fontSize: "18px",
+          color: "#ffd700",
+          stroke: "#000",
+          strokeThickness: 2,
+        }
+      )
+      .setOrigin(0.5)
+      .setDepth(9999);
+  }
+
+  // 初始化关卡计时器
+  initLevelTimer(scene) {
+    this.levelTimer = scene.time.addEvent({
+      delay: 1000, // 每秒更新一次
+      callback: () => {
+        if (this.gameState.levelTimeLeft > 0) {
+          this.gameState.setLevelTimeLeft(this.gameState.levelTimeLeft - 1);
+          this.updateLevelUI();
+
+          // 检查是否时间到
+          if (this.gameState.levelTimeLeft <= 0) {
+            this.handleLevelTimeout();
+          }
+        }
+      },
+      callbackScope: this,
+      loop: true,
+    });
+  }
+
+  // 更新关卡UI
+  updateLevelUI() {
+    if (this.levelText) {
+      this.levelText.setText(`关卡:${this.gameState.currentLevel}`);
+    }
+    if (this.targetText) {
+      this.targetText.setText(`目标\n${this.gameState.levelTargetScore}$`);
+    }
+    if (this.timeText) {
+      this.timeText.setText(`剩余:${this.gameState.levelTimeLeft}秒`);
+    }
+  }
+
+  // 处理时间到
+  handleLevelTimeout() {
+    const scene = this.game.scene.scenes[0];
+
+    if (this.gameState.isLevelCompleted()) {
+      // 关卡完成，进入下一关
+      this.showLevelComplete(scene);
+    } else {
+      // 关卡失败
+      this.showLevelFailed(scene);
+    }
+  }
+
+  // 显示关卡完成
+  showLevelComplete(scene) {
+    // 暂停游戏
+    this.paused = true;
+
+    // 停止计时器
+    if (this.levelTimer) {
+      this.levelTimer.remove();
+    }
+
+    // 显示完成消息
+    const completeText = scene.add
+      .text(
+        GameConfig.WIDTH / 2,
+        GameConfig.HEIGHT / 2,
+        `险胜-第${this.gameState.currentLevel}关`,
+        {
+          fontSize: "32px",
+          color: "#2ecc71",
+          stroke: "#000",
+          strokeThickness: 4,
+          fontWeight: "bold",
+        }
+      )
+      .setOrigin(0.5)
+      .setDepth(10000);
+
+    const nextLevelText = scene.add
+      .text(GameConfig.WIDTH / 2, GameConfig.HEIGHT / 2 + 40, "点击下一关", {
+        fontSize: "20px",
+        color: "#fff",
+        stroke: "#000",
+        strokeThickness: 2,
+      })
+      .setOrigin(0.5)
+      .setDepth(10000)
+      .setInteractive({ useHandCursor: true })
+      .on("pointerdown", () => {
+        // 恢复游戏
+        this.paused = false;
+        this.gameState.nextLevel();
+        this.resetForNextLevel(scene);
+        completeText.destroy();
+        nextLevelText.destroy();
+      });
+  }
+
+  // 显示关卡失败
+  showLevelFailed(scene) {
+    // 暂停游戏
+    this.paused = true;
+
+    // 停止计时器
+    if (this.levelTimer) {
+      this.levelTimer.remove();
+    }
+
+    // 显示失败消息
+    const failedText = scene.add
+      .text(
+        GameConfig.WIDTH / 2,
+        GameConfig.HEIGHT / 2,
+        `惜败-第${this.gameState.currentLevel}关`,
+        {
+          fontSize: "32px",
+          color: "#e74c3c",
+          stroke: "#000",
+          strokeThickness: 4,
+          fontWeight: "bold",
+        }
+      )
+      .setOrigin(0.5)
+      .setDepth(10000);
+
+    const retryText = scene.add
+      .text(GameConfig.WIDTH / 2, GameConfig.HEIGHT / 2 + 40, "点击重开", {
+        fontSize: "20px",
+        color: "#fff",
+        stroke: "#000",
+        strokeThickness: 2,
+      })
+      .setOrigin(0.5)
+      .setDepth(10000)
+      .setInteractive({ useHandCursor: true })
+      .on("pointerdown", () => {
+        // 重置游戏到第一关
+
+        // 重置游戏状态
+        this.gameState.resetGame();
+
+        // 清空所有游戏对象
+        this.coins.forEach((coin) => coin.destroy());
+        this.coins = [];
+        this.slimes.forEach((slime) => slime.destroy());
+        this.slimes = [];
+        this.helperSprites.forEach((helper) => helper.destroy());
+        this.helperSprites = [];
+
+        // 重新创建初始硬币
+        this.createCoins(scene);
+
+        // 恢复游戏
+        this.paused = false;
+
+        // 重新初始化计时器
+        this.initLevelTimer(scene);
+
+        // 更新UI
+        this.updateLevelUI();
+        this.scoreText.setText(`${this.gameState.score}$`);
+
+        // 销毁失败UI
+        failedText.destroy();
+        retryText.destroy();
+      });
+  }
+
+  // 重置为下一关
+  resetForNextLevel(scene) {
+    // 重置时间
+    this.gameState.setLevelTimeLeft(60);
+
+    // 重新初始化计时器
+    this.initLevelTimer(scene);
+
+    // 更新UI
+    this.updateLevelUI();
+  }
+
+  // 检查关卡完成状态
+  checkLevelCompletion() {
+    if (this.gameState.isLevelCompleted()) {
+      // 立即完成关卡
+      this.handleLevelTimeout();
+    }
   }
 }

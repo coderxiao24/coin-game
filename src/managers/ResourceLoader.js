@@ -51,8 +51,12 @@ export default class ResourceLoader {
     this.scene.load.audio("attackSound", "public/helper_attack.mp3");
     this.scene.load.audio("slimeDie", "public/slime_die.mp3");
     this.scene.load.once("complete", () => {
-      this.game.spinSound = this.scene.sound.add("spinSound");
-      this.game.attackSound = this.scene.sound.add("attackSound");
+      this.game.spinSound = this.scene.sound.add("spinSound", {
+        volume: 2,
+      });
+      this.game.attackSound = this.scene.sound.add("attackSound", {
+        volume: 0.5,
+      });
       this.game.slimeDie = this.scene.sound.add("slimeDie", {
         volume: 0.5,
       });
