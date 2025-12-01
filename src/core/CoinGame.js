@@ -481,7 +481,8 @@ export default class CoinGame {
           setTimeout(() => {
             coin.coinData.active = false;
             coin.destroy(); // 硬币消失
-
+            this.gameState.delCoin(coin.coinData);
+            this.uiManager.updateButtons();
             this.coins = this.coins.filter(
               (v) => v !== coin || v.coinData.active !== false
             );
@@ -546,6 +547,7 @@ export default class CoinGame {
               // 攻击史莱姆 - 暂时标记为不活跃，等待后续处理
               setTimeout(() => {
                 target.takeDamage();
+                this.gameState.delSlime(this);
               }, 100);
             }
             helper.helperData.isTired = Date.now();

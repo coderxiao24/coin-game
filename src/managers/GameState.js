@@ -81,9 +81,26 @@ export default class GameState {
     this.coins.push(coin);
     this.saveState();
   }
+
+  delCoin(coin) {
+    const idx = this.coins.findIndex((item) => item === coin);
+    if (idx >= 0) {
+      this.coins.splice(idx, 1);
+      this.saveState();
+    }
+  }
+
   addSlime(slime) {
     this.slimes.push(slime);
     this.saveState();
+  }
+
+  delSlime(slime) {
+    const idx = this.slimes.findIndex((item) => item === slime);
+    if (idx >= 0) {
+      this.slimes.splice(idx, 1);
+      this.saveState();
+    }
   }
 
   setScore(value) {
