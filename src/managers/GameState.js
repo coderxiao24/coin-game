@@ -4,15 +4,19 @@ export default class GameState {
     this.score = this.loadScore();
     this.coins = this.loadCoins();
     this.helpers = this.loadHelpers();
-    this.debouncedSave = this._debounce(this._saveToStorage.bind(this), 500);
+    this.slimes = this.loadSlimes();
+    this.debouncedSave = this._throttle(this._saveToStorage.bind(this), 500);
     this.saveState();
   }
 
-  _debounce(func, delay) {
-    let timeoutId;
-    return (...args) => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => func.apply(this, args), delay);
+  _throttle(func, delay) {
+    let lastExecTime = 0;
+    return function (...args) {
+      const now = Date.now();
+      if (now - lastExecTime >= delay) {
+        func.apply(this, args); // this 指向调用者
+        lastExecTime = now;
+      }
     };
   }
 
@@ -20,6 +24,7 @@ export default class GameState {
     localStorage.setItem("score", String(this.score));
     localStorage.setItem("coins", JSON.stringify(this.coins));
     localStorage.setItem("helpers", JSON.stringify(this.helpers));
+    localStorage.setItem("slimes", JSON.stringify(this.slimes));
   }
 
   loadScore() {
@@ -47,6 +52,16 @@ export default class GameState {
     }
   }
 
+  loadSlimes() {
+    try {
+      const cacheslimes = JSON.parse(localStorage.getItem("slimes"));
+      return cacheslimes && Array.isArray(cacheslimes) ? cacheslimes : [];
+    } catch (error) {
+      console.warn("Failed to load cacheslimes from localStorage:", error);
+      return [];
+    }
+  }
+
   saveState() {
     this.debouncedSave();
   }
@@ -58,6 +73,10 @@ export default class GameState {
 
   addCoin(coin) {
     this.coins.push(coin);
+    this.saveState();
+  }
+  addSlime(slime) {
+    this.slimes.push(slime);
     this.saveState();
   }
 
@@ -75,7 +94,8 @@ export default class GameState {
     return (
       localStorage.getItem("score") !== null ||
       localStorage.getItem("coins") !== null ||
-      localStorage.getItem("helpers") !== null
+      localStorage.getItem("helpers") !== null ||
+      localStorage.getItem("slimes") !== null
     );
   }
 
@@ -83,6 +103,7 @@ export default class GameState {
     this.score = 0;
     this.coins = [];
     this.helpers = [];
+    this.slimes = [];
     this.ensureSaved();
   }
 }

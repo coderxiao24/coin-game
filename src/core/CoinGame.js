@@ -4,6 +4,7 @@ import ResourceLoader from "../managers/ResourceLoader.js";
 import AnimationManager from "../managers/AnimationManager.js";
 import GameConfig from "./GameConfig.js";
 import Coin from "./Coin.js";
+import Slime from "./Slime.js";
 
 // 游戏主类
 export default class CoinGame {
@@ -12,6 +13,7 @@ export default class CoinGame {
     this.gameState = new GameState();
     this.uiManager = new UIManager(this);
     this.coins = []; // 存储Coin实例
+    this.slimes = [];
     this.helperSprites = [];
     this.uiManager.showStartMenu();
   }
@@ -64,6 +66,9 @@ export default class CoinGame {
 
     window.addEventListener("beforeunload", () => {
       this.gameState.ensureSaved();
+      if (this.slimeSpawner) {
+        this.slimeSpawner.remove(); // 安全移除
+      }
     });
   }
 
@@ -99,41 +104,18 @@ export default class CoinGame {
     this.animationManager.createHelperAnimations();
     this.animationManager.createSlimeAnimations();
     this.createCoins(scene);
+    this.createSlimes(scene);
     scene.physics.add.collider(this.coinGroup, this.coinGroup);
     this.createHelpers(scene);
 
-    //史莱姆动画测试
-    // const slime = scene.physics.add.sprite(200, 100, "slime");
-    // slime.setScale(2);
-    // slime.play("slime-idle-right");
-
-    // const slime0 = scene.physics.add.sprite(200, 200, "slime");
-    // slime0.setScale(2);
-    // slime0.play("slime-move-right");
-
-    // const slime1 = scene.physics.add.sprite(200, 300, "slime");
-    // slime1.setScale(2);
-    // slime1.play("slime-attack-right");
-    // const slime2 = scene.physics.add.sprite(200, 400, "slime");
-    // slime2.setScale(2);
-    // slime2.play("slime-idle-right");
-    // setTimeout(() => {
-    //   slime2.play("slime-hit-right");
-    // }, 2000);
-
-    // slime2.on(
-    //   "animationcomplete",
-    //   function (anim) {
-    //     if (anim.key === "slime-hit-right") {
-    //       slime2.play("slime-death");
-    //     } else if (anim.key === "slime-death") {
-    //       slime2.destroy(); // 或 setVisible(false), disableBody() 等
-    //     }
-    //   },
-    //   scene
-    // );
-
     this.uiManager.updateButtons();
+
+    this.slimeSpawner = scene.time.addEvent({
+      delay: 1000 * 10,
+      callback: this.randomCreateSlime,
+      callbackScope: this,
+      loop: true,
+    });
   }
 
   createGameBackground(scene) {
@@ -192,10 +174,23 @@ export default class CoinGame {
     });
   }
 
+  createSlimes(scene) {
+    // 创建所有硬币实例
+    this.gameState.slimes.forEach((slimeData) => {
+      this.createSlimeInstance(scene, slimeData);
+    });
+  }
+
   createCoinInstance(scene, coinData) {
     const coin = new Coin(scene, coinData, this);
     this.coins.push(coin);
     return coin;
+  }
+
+  createSlimeInstance(scene, slimeData) {
+    const slime = new Slime(scene, slimeData, this);
+    this.slimes.push(slime);
+    return slime;
   }
 
   createHelperSprite(scene, helperData) {
@@ -318,6 +313,26 @@ export default class CoinGame {
     return names[type] || type;
   }
 
+  randomCreateSlime() {
+    // 创建新硬币
+    const x = Phaser.Math.Between(
+      GameConfig.SAFE_MARGIN,
+      GameConfig.WIDTH - GameConfig.SAFE_MARGIN
+    );
+    const y = Phaser.Math.Between(
+      GameConfig.SAFE_MARGIN,
+      GameConfig.HEIGHT - GameConfig.SAFE_MARGIN
+    );
+
+    const newSlime = {
+      direction: "down",
+      x,
+      y,
+    };
+
+    this.gameState.addSlime(newSlime);
+    this.createSlimeInstance(this.game.scene.scenes[0], newSlime);
+  }
   update() {
     // Step 1: 收集所有有效 helper（非疲劳状态）
     const availableHelpers = this.helperSprites.filter((helper) => {
@@ -428,7 +443,6 @@ export default class CoinGame {
         // 没有目标：停止
         helper.setVelocity(0, 0);
       }
-      this.gameState.saveState();
     });
 
     // 防止硬币挤出边界
@@ -445,6 +459,8 @@ export default class CoinGame {
         GameConfig.HEIGHT - GameConfig.SAFE_MARGIN
       );
 
+      coinInstance.coinData.x = coin.x;
+      coinInstance.coinData.y = coin.y;
       if (
         coin.x <= GameConfig.SAFE_MARGIN ||
         coin.x >= GameConfig.WIDTH - GameConfig.SAFE_MARGIN
@@ -459,5 +475,7 @@ export default class CoinGame {
         coin.body.velocity.y = 0;
       }
     });
+
+    this.gameState.saveState();
   }
 }

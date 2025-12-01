@@ -113,7 +113,7 @@ export default class AnimationManager {
           end: (index + 6) * 7 + 6,
         }),
         frameRate: GameConfig.ANIMATION.SLIME_FRAME_RATE,
-        repeat: -1,
+        repeat: 0,
       });
       this.scene.anims.create({
         key: `slime-hit-${direction}`,
