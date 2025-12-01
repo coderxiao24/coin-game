@@ -111,8 +111,11 @@ export default class CoinGame {
     this.uiManager.updateButtons();
 
     this.slimeSpawner = scene.time.addEvent({
-      delay: 1000 * 10,
-      callback: this.randomCreateSlime,
+      delay: 1000 * 5,
+      callback: () => {
+        this.slimes = this.slimes.filter((v) => v.slimeData.active !== false);
+        this.randomCreateSlime();
+      },
       callbackScope: this,
       loop: true,
     });
@@ -328,6 +331,7 @@ export default class CoinGame {
       direction: "down",
       x,
       y,
+      active: true,
     };
 
     this.gameState.addSlime(newSlime);
@@ -348,40 +352,146 @@ export default class CoinGame {
 
     const availableCoins = this.coins.filter((coin) => !coin.isSpinning);
 
-    // Step 2: 构建所有可能的 (helper, coin, distance) 配对
-    const pairs = [];
-    for (const helper of availableHelpers) {
+    const availableSlimes = this.slimes.filter(
+      (slime) => slime.slimeData.active !== false && slime.isAttacking !== true
+    );
+
+    // Step 2: 构建三种配对关系
+
+    // 1. 史莱姆 -> 硬币的配对（史莱姆攻击硬币）
+    const slimeToCoinPairs = [];
+    for (const slime of availableSlimes) {
+      const slimeSprite = slime.getSprite();
       for (const coin of availableCoins) {
         const sprite = coin.getSprite();
-        const dx = sprite.x - helper.x;
-        const dy = sprite.y - helper.y;
+        const dx = sprite.x - slimeSprite.x;
+        const dy = sprite.y - slimeSprite.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        pairs.push({ helper, coin, dist, dx, dy });
+        slimeToCoinPairs.push({ slime, coin, dist, dx, dy });
       }
     }
 
-    // Step 3: 按距离升序排序（最近的优先匹配）
-    pairs.sort((a, b) => a.dist - b.dist);
+    // 2. 助手 -> 史莱姆的配对（助手攻击史莱姆）
+    const helperToSlimePairs = [];
+    for (const helper of availableHelpers) {
+      for (const slime of availableSlimes) {
+        const slimeSprite = slime.getSprite();
+        const dx = slimeSprite.x - helper.x;
+        const dy = slimeSprite.y - helper.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        helperToSlimePairs.push({
+          helper,
+          target: slime,
+          type: "slime",
+          dist,
+          dx,
+          dy,
+        });
+      }
+    }
 
-    // Step 4: 贪心分配（确保一对一）
-    const assignedHelpers = new Set();
+    // 3. 助手 -> 硬币的配对（备用，当没有史莱姆时）
+    const helperToCoinPairs = [];
+
+    if (availableSlimes.length === 0) {
+      // 只在没有史莱姆时考虑硬币
+      for (const helper of availableHelpers) {
+        for (const coin of availableCoins) {
+          const sprite = coin.getSprite();
+          const dx = sprite.x - helper.x;
+          const dy = sprite.y - helper.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          helperToCoinPairs.push({
+            helper,
+            target: coin,
+            type: "coin",
+            dist,
+            dx,
+            dy,
+          });
+        }
+      }
+    }
+
+    // Step 3: 按距离升序排序
+    slimeToCoinPairs.sort((a, b) => a.dist - b.dist);
+    helperToSlimePairs.sort((a, b) => a.dist - b.dist);
+    helperToCoinPairs.sort((a, b) => a.dist - b.dist);
+
+    // Step 4: 贪心分配 - 独立分配史莱姆和助手
+    const assignedSlimes = new Set();
     const assignedCoins = new Set();
-    const assignments = new Map(); // helper → { coin, dx, dy, dist }
+    const assignedHelpers = new Set();
 
-    for (const { helper, coin, dx, dy, dist } of pairs) {
-      if (assignedHelpers.has(helper) || assignedCoins.has(coin)) {
-        continue; // 已分配，跳过
-      }
-      assignedHelpers.add(helper);
+    const slimeAssignments = new Map(); // slime → { coin, dx, dy, dist }
+    const helperAssignments = new Map(); // helper → { target, type, dx, dy, dist }
+
+    // 先分配史莱姆到硬币（史莱姆优先攻击硬币）
+    for (const { slime, coin, dx, dy, dist } of slimeToCoinPairs) {
+      if (assignedSlimes.has(slime) || assignedCoins.has(coin)) continue;
+
+      assignedSlimes.add(slime);
       assignedCoins.add(coin);
-      assignments.set(helper, { coin, dx, dy, dist });
+      slimeAssignments.set(slime, { coin, dx, dy, dist });
     }
 
-    // Step 5: 更新每个 helper 的行为
-    availableHelpers.forEach((helper) => {
-      const assignment = assignments.get(helper);
+    // 然后分配助手到史莱姆（助手优先攻击史莱姆）
+    for (const { helper, target, type, dx, dy, dist } of helperToSlimePairs) {
+      if (assignedHelpers.has(helper)) continue;
+
+      // 助手可以攻击已经被史莱姆锁定的史莱姆（同一个史莱姆可以被史莱姆和助手同时作为目标）
+      if (target.slimeData.active !== false) {
+        // 只攻击活跃的史莱姆
+        assignedHelpers.add(helper);
+        helperAssignments.set(helper, { target, type, dx, dy, dist });
+      }
+    }
+
+    // 如果没有史莱姆，分配助手到硬币
+    if (availableSlimes.length === 0) {
+      for (const { helper, target, type, dx, dy, dist } of helperToCoinPairs) {
+        if (assignedHelpers.has(helper) || assignedCoins.has(target)) continue;
+
+        assignedHelpers.add(helper);
+        assignedCoins.add(target);
+        helperAssignments.set(helper, { target, type, dx, dy, dist });
+      }
+    }
+
+    // Step 5: 更新史莱姆行为（攻击硬币）
+    availableSlimes.forEach((slime) => {
+      if (slime.slimeData.active === false) return;
+      const assignment = slimeAssignments.get(slime);
       if (assignment) {
         const { coin, dx, dy, dist } = assignment;
+
+        // 史莱姆前往硬币
+        const arrived = slime.moveBy(dx, dy);
+
+        if (arrived) {
+          slime.stopMoving();
+          // 史莱姆攻击硬币
+          slime.attack();
+          setTimeout(() => {
+            coin.destroy(); // 硬币消失
+            coin.coinData.active = false;
+            this.coins = this.coins.filter(
+              (v) => v !== coin || v.coinData.active !== false
+            );
+          }, 500);
+        }
+      } else {
+        // 史莱姆没有目标：停止移动
+        slime.stopMoving();
+        slime.playIdleAnimation();
+      }
+    });
+
+    // Step 6: 更新helper行为（攻击史莱姆或硬币）
+    availableHelpers.forEach((helper) => {
+      const assignment = helperAssignments.get(helper);
+      if (assignment) {
+        const { target, type, dx, dy, dist } = assignment;
 
         // 确定方向
         if (Math.abs(dx) > Math.abs(dy)) {
@@ -391,7 +501,7 @@ export default class CoinGame {
         }
 
         if (dist > 20) {
-          // 移动
+          // 移动helper
           const speed = 100;
           helper.setVelocity((dx / dist) * speed, (dy / dist) * speed);
 
@@ -420,10 +530,17 @@ export default class CoinGame {
 
             this.attackSound?.play();
 
-            setTimeout(() => {
-              coin.spin();
-            }, 100);
-
+            if (type === "coin") {
+              // 攻击硬币
+              setTimeout(() => {
+                target.spin();
+              }, 100);
+            } else {
+              // 攻击史莱姆 - 暂时标记为不活跃，等待后续处理
+              setTimeout(() => {
+                target.takeDamage();
+              }, 100);
+            }
             helper.helperData.isTired = Date.now();
           }
         }
@@ -445,7 +562,7 @@ export default class CoinGame {
       }
     });
 
-    // 防止硬币挤出边界
+    // 防止硬币挤出边界（保持不变）
     this.coins.forEach((coinInstance) => {
       const coin = coinInstance.getSprite();
       coin.x = Phaser.Math.Clamp(
@@ -465,7 +582,7 @@ export default class CoinGame {
         coin.x <= GameConfig.SAFE_MARGIN ||
         coin.x >= GameConfig.WIDTH - GameConfig.SAFE_MARGIN
       ) {
-        coin.body.velocity.x = 0; // 停止水平移动（防止"卡墙抖动"）
+        coin.body.velocity.x = 0;
       }
 
       if (

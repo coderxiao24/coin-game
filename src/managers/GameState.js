@@ -22,9 +22,15 @@ export default class GameState {
 
   _saveToStorage() {
     localStorage.setItem("score", String(this.score));
-    localStorage.setItem("coins", JSON.stringify(this.coins));
+    localStorage.setItem(
+      "coins",
+      JSON.stringify(this.coins.filter((v) => v.active !== false))
+    );
     localStorage.setItem("helpers", JSON.stringify(this.helpers));
-    localStorage.setItem("slimes", JSON.stringify(this.slimes));
+    localStorage.setItem(
+      "slimes",
+      JSON.stringify(this.slimes.filter((v) => v.active !== false))
+    );
   }
 
   loadScore() {

@@ -8,6 +8,7 @@ export default class ResourceLoader {
 
   preload() {
     this.game.uiManager.updateLoadingProgress(33, "加载图像资源...");
+    this.scene.load.audio("slimeSound", "public/slime.mp3");
 
     this.scene.load.image("woodenFloor", "public/floors/wooden.png");
     this.scene.load.image("shopWoodenFloor", "public/floors/shopWooden.png");
@@ -52,6 +53,11 @@ export default class ResourceLoader {
     this.scene.load.once("complete", () => {
       this.game.spinSound = this.scene.sound.add("spinSound");
       this.game.attackSound = this.scene.sound.add("attackSound");
+
+      this.game.slimeHitSound = this.scene.sound.add("slimeSound", {
+        volume: 0.5,
+        // 不循环，默认单次
+      });
 
       this.game.uiManager.updateLoadingProgress(100, "游戏准备就绪!");
       setTimeout(() => {
