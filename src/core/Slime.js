@@ -1,5 +1,5 @@
 import GameConfig from "./GameConfig.js";
-
+import { showScore } from "../utils/index.js";
 // 史莱姆类
 export default class Slime {
   constructor(scene, slimeData, gameInstance) {
@@ -191,7 +191,8 @@ export default class Slime {
   takeDamage() {
     if (!this.slimeData.active) return;
     this.stopMoving();
-    this.gameInstance.slimeHitSound?.play();
+    this.gameInstance.slimeDie?.play();
+
     this.slimeData.active = false;
     this.sprite.setVelocity(0, 0);
     this.playHitAnimation();
@@ -199,6 +200,7 @@ export default class Slime {
 
   // 死亡
   die() {
+    showScore(this.gameInstance, { x: this.sprite.x, y: this.sprite.y }, 0.5);
     this.playDeathAnimation();
   }
 

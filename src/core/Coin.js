@@ -1,5 +1,5 @@
 import GameConfig from "./GameConfig.js";
-
+import { showScore } from "../utils/index.js";
 // 硬币类
 export default class Coin {
   constructor(scene, coinData, gameInstance) {
@@ -97,7 +97,11 @@ export default class Coin {
     // 提高一些概率 防止玩家烦躁
     if (Math.random() < 0.7) {
       this.sprite.play(`${this.coinData.type}Flash`);
-      this.showScore();
+      showScore(
+        this.gameInstance,
+        { x: this.sprite.x, y: this.sprite.y },
+        this.coinData.value
+      );
     } else {
       this.showSorryText();
     }
@@ -109,55 +113,6 @@ export default class Coin {
 
     // 重置旋转状态
     this.isSpinning = false;
-  }
-
-  // 显示得分文本
-  showScore() {
-    // 创建数值文本，设置为白色填充，黑色边框
-    const valueText = this.scene.add
-      .text(this.sprite.x, this.sprite.y - 30, `${this.coinData.value}`, {
-        fontSize: "16px",
-        fontWeight: "bold",
-        color: "#ffffff", // 白色填充
-        stroke: "#000000",
-        strokeThickness: 4,
-      })
-      .setOrigin(0.5);
-
-    // 创建货币符号文本，设置为黄色填充，黑色边框
-    const dollarSign = this.scene.add
-      .text(valueText.x + valueText.width / 2 + 4, this.sprite.y - 30, `$`, {
-        fontSize: "16px",
-        fontWeight: "bold",
-        color: GameConfig.DOLLAR_COLOR,
-        stroke: "#000000",
-        strokeThickness: 4,
-      })
-      .setOrigin(0.5);
-
-    // 同时对两个文本应用动画效果
-    this.scene.tweens.add({
-      targets: [valueText, dollarSign],
-      alpha: 0,
-      y: valueText.y - 20,
-      duration: GameConfig.ANIMATION.FLASH_DURATION,
-      ease: "Cubic.easeOut",
-      onComplete: () => {
-        valueText.destroy();
-        dollarSign.destroy();
-      },
-    });
-
-    // 更新分数
-    this.gameInstance.gameState.setScore(
-      this.gameInstance.gameState.score + this.coinData.value
-    );
-    this.gameInstance.scoreText.setText(
-      `${this.gameInstance.gameState.score}$`
-    );
-
-    // 更新按钮状态
-    this.gameInstance.uiManager.updateButtons();
   }
 
   // 显示抱歉文本

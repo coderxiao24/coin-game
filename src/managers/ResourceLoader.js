@@ -49,14 +49,16 @@ export default class ResourceLoader {
     this.game.uiManager.updateLoadingProgress(66, "加载音频...");
     this.scene.load.audio("spinSound", "public/coin_spin.mp3");
     this.scene.load.audio("attackSound", "public/helper_attack.mp3");
-
+    this.scene.load.audio("slimeDie", "public/slime_die.mp3");
     this.scene.load.once("complete", () => {
       this.game.spinSound = this.scene.sound.add("spinSound");
       this.game.attackSound = this.scene.sound.add("attackSound");
+      this.game.slimeDie = this.scene.sound.add("slimeDie", {
+        volume: 0.5,
+      });
 
       this.game.slimeHitSound = this.scene.sound.add("slimeSound", {
         volume: 0.5,
-        // 不循环，默认单次
       });
 
       this.game.uiManager.updateLoadingProgress(100, "游戏准备就绪!");
