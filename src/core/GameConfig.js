@@ -58,9 +58,9 @@ export default class GameConfig {
     return {
       ENABLED: true, // 启用关卡模式
       LEVEL_TIME: 60, // 每关时间（秒）
-      FIRST_LEVEL_TARGET: 50, // 第一关目标分数
+      FIRST_LEVEL_TARGET: 25, // 第一关目标分数
       TARGET_MULTIPLIER: 2, // 每关目标分数乘数
-      MAX_LEVEL: 100, // 最大关卡数
+      MAX_LEVEL: 999, // 最大关卡数
     };
   }
 }

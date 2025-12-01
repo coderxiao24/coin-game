@@ -120,7 +120,11 @@ export default class CoinGame {
       delay: 1000 * 5,
       callback: () => {
         this.slimes = this.slimes.filter((v) => v.slimeData.active !== false);
-        if (!this.paused) this.randomCreateSlime();
+        if (!this.paused) {
+          for (let i = 0; i < this.gameState.currentLevel / 2; i++) {
+            this.randomCreateSlime();
+          }
+        }
       },
       callbackScope: this,
       loop: true,
