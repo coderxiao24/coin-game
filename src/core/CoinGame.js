@@ -319,7 +319,6 @@ export default class CoinGame {
   randomCreateSlime() {
     const { WIDTH, HEIGHT } = GameConfig;
     // 设定一个扩展距离，即从屏幕边缘向外扩展多少像素
-    const expandDistance = 50;
 
     // 随机选择生成位置是在上下左右哪一边
     const side = Phaser.Math.Between(1, 3);
@@ -328,16 +327,16 @@ export default class CoinGame {
 
     switch (side) {
       case 1: // 上边
-        x = Phaser.Math.Between(-expandDistance, WIDTH);
-        y = -expandDistance;
+        x = Phaser.Math.Between(0, WIDTH);
+        y = 0;
         break;
       case 2: // 下边
-        x = Phaser.Math.Between(-expandDistance, WIDTH);
-        y = HEIGHT + expandDistance;
+        x = Phaser.Math.Between(0, WIDTH);
+        y = HEIGHT;
         break;
       case 3: // 左边
-        x = -expandDistance;
-        y = Phaser.Math.Between(-expandDistance, HEIGHT + expandDistance);
+        x = 0;
+        y = Phaser.Math.Between(0, HEIGHT);
         break;
       default:
         console.error("Unexpected side value");
@@ -412,26 +411,22 @@ export default class CoinGame {
       }
     }
 
-    // 3. 助手 -> 硬币的配对（备用，当没有史莱姆时）
+    // 3. 助手 -> 硬币的配对（助手也可以攻击硬币）
     const helperToCoinPairs = [];
-
-    if (aliveSlimes.length === 0) {
-      // 只在没有史莱姆时考虑硬币
-      for (const helper of availableHelpers) {
-        for (const coin of availableCoins) {
-          const sprite = coin.getSprite();
-          const dx = sprite.x - helper.x;
-          const dy = sprite.y - helper.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          helperToCoinPairs.push({
-            helper,
-            target: coin,
-            type: "coin",
-            dist,
-            dx,
-            dy,
-          });
-        }
+    for (const helper of availableHelpers) {
+      for (const coin of availableCoins) {
+        const sprite = coin.getSprite();
+        const dx = sprite.x - helper.x;
+        const dy = sprite.y - helper.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        helperToCoinPairs.push({
+          helper,
+          target: coin,
+          type: "coin",
+          dist,
+          dx,
+          dy,
+        });
       }
     }
 
@@ -440,16 +435,16 @@ export default class CoinGame {
     helperToSlimePairs.sort((a, b) => a.dist - b.dist);
     helperToCoinPairs.sort((a, b) => a.dist - b.dist);
 
-    // Step 4: 贪心分配 - 独立分配史莱姆和助手
+    // Step 4: 贪心分配
     const assignedSlimes = new Set();
     const assignedCoins = new Set();
     const assignedHelpers = new Set();
-    const assignedSlimeTargets = new Set();
+    const assignedSlimeTargets = new Set(); // 已被助手分配的史莱姆
 
     const slimeAssignments = new Map(); // slime → { coin, dx, dy, dist }
     const helperAssignments = new Map(); // helper → { target, type, dx, dy, dist }
 
-    // 先分配史莱姆到硬币（史莱姆优先攻击硬币）
+    // 先分配史莱姆到硬币（史莱姆优先攻击硬币）1对1
     for (const { slime, coin, dx, dy, dist } of slimeToCoinPairs) {
       if (assignedSlimes.has(slime) || assignedCoins.has(coin)) continue;
 
@@ -458,21 +453,27 @@ export default class CoinGame {
       slimeAssignments.set(slime, { coin, dx, dy, dist });
     }
 
-    // 然后分配助手到史莱姆（助手优先攻击史莱姆），一对一配对
+    // 然后分配助手到史莱姆（助手优先攻击史莱姆）1对1
+    // 但只给每个史莱姆分配一个助手
     for (const { helper, target, type, dx, dy, dist } of helperToSlimePairs) {
       if (assignedHelpers.has(helper)) continue;
-      if (assignedSlimeTargets.has(target)) continue;
-      if (target.slimeData.active === false) continue;
+      if (assignedSlimeTargets.has(target)) continue; // 这个史莱姆已经有助手了
 
       assignedHelpers.add(helper);
-      assignedSlimeTargets.add(target); // ← 锁定这个史莱姆
+      assignedSlimeTargets.add(target); // 标记这个史莱姆已被分配
       helperAssignments.set(helper, { target, type, dx, dy, dist });
     }
 
-    // 如果没有史莱姆，分配助手到硬币
-    if (aliveSlimes.length === 0) {
+    // 最后分配剩余的助手到硬币（如果有剩余的助手）
+    // 条件是：所有史莱姆都有助手了，或者没有史莱姆了
+    const allSlimesHaveHelpers =
+      aliveSlimes.length > 0 &&
+      aliveSlimes.every((slime) => assignedSlimeTargets.has(slime));
+
+    if (allSlimesHaveHelpers || aliveSlimes.length === 0) {
       for (const { helper, target, type, dx, dy, dist } of helperToCoinPairs) {
-        if (assignedHelpers.has(helper) || assignedCoins.has(target)) continue;
+        if (assignedHelpers.has(helper)) continue;
+        if (assignedCoins.has(target)) continue; // 这个硬币可能已经被分配
 
         assignedHelpers.add(helper);
         assignedCoins.add(target);
@@ -560,10 +561,10 @@ export default class CoinGame {
                 target.spin();
               }, 100);
             } else {
-              // 攻击史莱姆 - 暂时标记为不活跃，等待后续处理
+              // 攻击史莱姆
               setTimeout(() => {
                 target.takeDamage();
-                this.gameState.delSlime(this);
+                this.gameState.delSlime(target.slimeData);
               }, 100);
             }
             helper.helperData.isTired = Date.now();

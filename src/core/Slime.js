@@ -155,7 +155,7 @@ export default class Slime {
       }
 
       // 设置速度
-      const speed = 50;
+      const speed = 60;
       this.sprite.setVelocity((dx / distance) * speed, (dy / distance) * speed);
 
       // 播放移动动画
