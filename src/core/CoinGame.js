@@ -352,15 +352,21 @@ export default class CoinGame {
 
     const availableCoins = this.coins.filter((coin) => !coin.isSpinning);
 
-    const availableSlimes = this.slimes.filter(
+    // 史莱姆自己能行动的（用于追硬币）
+    const activeNonAttackingSlimes = this.slimes.filter(
       (slime) => slime.slimeData.active !== false && slime.isAttacking !== true
+    );
+
+    // 所有活着的史莱姆（用于被助手攻击）
+    const aliveSlimes = this.slimes.filter(
+      (slime) => slime.slimeData.active !== false
     );
 
     // Step 2: 构建三种配对关系
 
     // 1. 史莱姆 -> 硬币的配对（史莱姆攻击硬币）
     const slimeToCoinPairs = [];
-    for (const slime of availableSlimes) {
+    for (const slime of activeNonAttackingSlimes) {
       const slimeSprite = slime.getSprite();
       for (const coin of availableCoins) {
         const sprite = coin.getSprite();
@@ -374,7 +380,7 @@ export default class CoinGame {
     // 2. 助手 -> 史莱姆的配对（助手攻击史莱姆）
     const helperToSlimePairs = [];
     for (const helper of availableHelpers) {
-      for (const slime of availableSlimes) {
+      for (const slime of aliveSlimes) {
         const slimeSprite = slime.getSprite();
         const dx = slimeSprite.x - helper.x;
         const dy = slimeSprite.y - helper.y;
@@ -393,7 +399,7 @@ export default class CoinGame {
     // 3. 助手 -> 硬币的配对（备用，当没有史莱姆时）
     const helperToCoinPairs = [];
 
-    if (availableSlimes.length === 0) {
+    if (aliveSlimes.length === 0) {
       // 只在没有史莱姆时考虑硬币
       for (const helper of availableHelpers) {
         for (const coin of availableCoins) {
@@ -422,6 +428,7 @@ export default class CoinGame {
     const assignedSlimes = new Set();
     const assignedCoins = new Set();
     const assignedHelpers = new Set();
+    const assignedSlimeTargets = new Set();
 
     const slimeAssignments = new Map(); // slime → { coin, dx, dy, dist }
     const helperAssignments = new Map(); // helper → { target, type, dx, dy, dist }
@@ -435,20 +442,19 @@ export default class CoinGame {
       slimeAssignments.set(slime, { coin, dx, dy, dist });
     }
 
-    // 然后分配助手到史莱姆（助手优先攻击史莱姆）
+    // 然后分配助手到史莱姆（助手优先攻击史莱姆），一对一配对
     for (const { helper, target, type, dx, dy, dist } of helperToSlimePairs) {
       if (assignedHelpers.has(helper)) continue;
+      if (assignedSlimeTargets.has(target)) continue;
+      if (target.slimeData.active === false) continue;
 
-      // 助手可以攻击已经被史莱姆锁定的史莱姆（同一个史莱姆可以被史莱姆和助手同时作为目标）
-      if (target.slimeData.active !== false) {
-        // 只攻击活跃的史莱姆
-        assignedHelpers.add(helper);
-        helperAssignments.set(helper, { target, type, dx, dy, dist });
-      }
+      assignedHelpers.add(helper);
+      assignedSlimeTargets.add(target); // ← 锁定这个史莱姆
+      helperAssignments.set(helper, { target, type, dx, dy, dist });
     }
 
     // 如果没有史莱姆，分配助手到硬币
-    if (availableSlimes.length === 0) {
+    if (aliveSlimes.length === 0) {
       for (const { helper, target, type, dx, dy, dist } of helperToCoinPairs) {
         if (assignedHelpers.has(helper) || assignedCoins.has(target)) continue;
 
@@ -459,7 +465,7 @@ export default class CoinGame {
     }
 
     // Step 5: 更新史莱姆行为（攻击硬币）
-    availableSlimes.forEach((slime) => {
+    activeNonAttackingSlimes.forEach((slime) => {
       if (slime.slimeData.active === false) return;
       const assignment = slimeAssignments.get(slime);
       if (assignment) {
@@ -473,8 +479,9 @@ export default class CoinGame {
           // 史莱姆攻击硬币
           slime.attack();
           setTimeout(() => {
-            coin.destroy(); // 硬币消失
             coin.coinData.active = false;
+            coin.destroy(); // 硬币消失
+
             this.coins = this.coins.filter(
               (v) => v !== coin || v.coinData.active !== false
             );

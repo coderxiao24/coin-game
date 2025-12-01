@@ -38,7 +38,7 @@ export default class Coin {
 
   // 旋转硬币
   spin() {
-    if (this.isSpinning) return;
+    if (this.isSpinning || this.coinData.active === false) return;
 
     this.isSpinning = true;
 
@@ -89,6 +89,7 @@ export default class Coin {
 
   // 完成旋转
   completeSpin(targetX, targetY) {
+    if (this.coinData.active === false) return;
     // 停止旋转，播放闪光
     this.sprite.stop();
     this.sprite.setFrame(0);
