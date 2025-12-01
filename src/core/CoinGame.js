@@ -317,15 +317,31 @@ export default class CoinGame {
   }
 
   randomCreateSlime() {
-    // 创建新硬币
-    const x = Phaser.Math.Between(
-      GameConfig.SAFE_MARGIN,
-      GameConfig.WIDTH - GameConfig.SAFE_MARGIN
-    );
-    const y = Phaser.Math.Between(
-      GameConfig.SAFE_MARGIN,
-      GameConfig.HEIGHT - GameConfig.SAFE_MARGIN
-    );
+    const { WIDTH, HEIGHT } = GameConfig;
+    // 设定一个扩展距离，即从屏幕边缘向外扩展多少像素
+    const expandDistance = 50;
+
+    // 随机选择生成位置是在上下左右哪一边
+    const side = Phaser.Math.Between(1, 3);
+
+    let x, y;
+
+    switch (side) {
+      case 1: // 上边
+        x = Phaser.Math.Between(-expandDistance, WIDTH);
+        y = -expandDistance;
+        break;
+      case 2: // 下边
+        x = Phaser.Math.Between(-expandDistance, WIDTH);
+        y = HEIGHT + expandDistance;
+        break;
+      case 3: // 左边
+        x = -expandDistance;
+        y = Phaser.Math.Between(-expandDistance, HEIGHT + expandDistance);
+        break;
+      default:
+        console.error("Unexpected side value");
+    }
 
     const newSlime = {
       direction: "down",
