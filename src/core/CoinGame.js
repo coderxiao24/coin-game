@@ -869,7 +869,7 @@ export default class CoinGame {
   // 重置为下一关
   resetForNextLevel(scene) {
     // 重置时间
-    this.gameState.setLevelTimeLeft(this.GameConfig.LEVEL_MODE.LEVEL_TIME);
+    this.gameState.setLevelTimeLeft(GameConfig.LEVEL_MODE.LEVEL_TIME);
 
     // 重新初始化计时器
     this.initLevelTimer(scene);
