@@ -59,7 +59,7 @@ export default class Coin {
     const targetX = Phaser.Math.Clamp(
       this.sprite.x + offsetX,
       GameConfig.SAFE_MARGIN,
-      GameConfig.WIDTH - GameConfig.SAFE_MARGIN
+      GameConfig.WIDTH
     );
     const targetY = Phaser.Math.Clamp(
       this.sprite.y + offsetY,

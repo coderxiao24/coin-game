@@ -837,7 +837,7 @@ export default class CoinGame {
 
         // 重置游戏状态
         this.gameState.resetGame();
-
+        this.gameState.setCurrentLevel(1);
         // 清空所有游戏对象
         this.coins.forEach((coin) => coin.destroy());
         this.coins = [];
@@ -859,6 +859,7 @@ export default class CoinGame {
         this.updateLevelUI();
         this.scoreText.setText(`${this.gameState.score}$`);
 
+        this.uiManager.updateButtons();
         // 销毁失败UI
         failedText.destroy();
         retryText.destroy();
@@ -868,7 +869,7 @@ export default class CoinGame {
   // 重置为下一关
   resetForNextLevel(scene) {
     // 重置时间
-    this.gameState.setLevelTimeLeft(60);
+    this.gameState.setLevelTimeLeft(this.GameConfig.LEVEL_MODE.LEVEL_TIME);
 
     // 重新初始化计时器
     this.initLevelTimer(scene);

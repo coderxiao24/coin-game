@@ -88,7 +88,9 @@ export default class GameState {
 
   loadLevelTimeLeft() {
     const cacheTime = Number(localStorage.getItem("levelTimeLeft"));
-    return Number.isNaN(cacheTime) ? 60 : Math.max(0, cacheTime); // 默认3分钟
+    return Number.isNaN(cacheTime)
+      ? GameConfig.LEVEL_MODE.LEVEL_TIME
+      : Math.max(0, cacheTime); // 默认3分钟
   }
 
   loadLevelTargetScore() {
