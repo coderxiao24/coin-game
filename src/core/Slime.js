@@ -56,6 +56,9 @@ export default class Slime {
         : this.slimeData.direction || "down"
     }`;
     if (this.sprite.anims.currentAnim?.key !== animKey) {
+      if (this.moveSound?.isPlaying) {
+        this.moveSound?.stop();
+      }
       this.sprite.play(animKey);
       this.sprite.flipX = this.slimeData.direction === "left";
     }
@@ -183,6 +186,9 @@ export default class Slime {
   // 攻击
   attack() {
     if (!this.slimeData.active || this.isAttacking) return;
+    if (this.moveSound?.isPlaying) {
+      this.moveSound?.stop();
+    }
     this.gameInstance.slimeHitSound?.play();
     this.playAttackAnimation();
   }
@@ -221,6 +227,9 @@ export default class Slime {
 
   // 销毁史莱姆
   destroy() {
+    if (this.moveSound?.isPlaying) {
+      this.moveSound?.stop();
+    }
     this.sprite.destroy();
   }
 
